@@ -1,0 +1,3775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rainwater Harvesting Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+ :root{
+ --cream: #F5EFDF;
+ --green: #3F8C4A;
+ --green-dark: #245C2C;
+ --green-light: #E7F0E3;
+ --brown: #7A5230;
+ --brown-dark: #5A3A1C;
+ --brown-light: #F0E6D8;
+ --grey: #B8B2A2;
+ --grey-light: #E5E1D6;
+ --grey-dark: #5C5848;
+ --ink: #211F1A;
+ --red: #B23A2E;
+ --red-light: #FBEAE7;
+ --amber: #B8862E;
+ --amber-light: #FBF1DE;
+ --purple: #5A3F8C;
+ --purple-light: #C7B6E8;
+ --focus-ring: 0 0 0 3px rgba(63,140,74,0.35);
+ }
+
+ *{ box-sizing: border-box; }
+
+ html{
+ scroll-behavior: smooth;
+ }
+
+ body{
+ margin:0;
+ font-family: 'Inter', 'Segoe UI', 'Noto Sans Devanagari', Arial, sans-serif;
+ background-color: var(--cream);
+ color: var(--ink);
+ line-height: 1.55;
+ -webkit-font-smoothing: antialiased;
+ }
+
+ .icon-svg{
+ flex-shrink: 0;
+ vertical-align: middle;
+ color: var(--green-dark);
+ }
+ .badge .icon-svg, .ai-risk-badge .icon-svg{ width:14px; height:14px; }
+
+ /* Universal scroll-margin so sticky header never covers a jump target */
+ section, .section, [id]{ scroll-margin-top: 84px; }
+
+ /* ── ACCESSIBILITY: focus-visible everywhere, mouse clicks stay clean ── */
+ a, button, input, select, textarea, [tabindex]{
+ outline: none;
+ }
+ a:focus-visible, button:focus-visible, input:focus-visible,
+ select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible{
+ outline: 3px solid var(--green);
+ outline-offset: 2px;
+ border-radius: 6px;
+ }
+
+ /* ── SKIP LINK ── */
+ .skip-link{
+ position: absolute;
+ left: -999px;
+ top: 0;
+ background: var(--green-dark);
+ color: #fff;
+ padding: 12px 20px;
+ z-index: 2000;
+ border-radius: 0 0 10px 0;
+ font-weight: 700;
+ font-size: 14px;
+ text-decoration: none;
+ }
+ .skip-link:focus{
+ left: 0;
+ }
+
+ /* ── REDUCED MOTION: respected globally ── */
+ @media (prefers-reduced-motion: reduce){
+ *, *::before, *::after{
+ animation-duration: 0.001ms !important;
+ animation-iteration-count: 1 !important;
+ transition-duration: 0.001ms !important;
+ scroll-behavior: auto !important;
+ }
+ html{ scroll-behavior: auto; }
+ }
+
+ /* ── SHARED LOADING / SPINNER ── */
+ @keyframes spin{ to{ transform: rotate(360deg); } }
+ .btn-spinner{
+ display: inline-block;
+ width: 16px; height: 16px;
+ border: 2.5px solid rgba(255,255,255,0.4);
+ border-top-color: #fff;
+ border-radius: 50%;
+ animation: spin 0.7s linear infinite;
+ vertical-align: -3px;
+ margin-right: 8px;
+ }
+ .calc-btn.is-loading{
+ cursor: progress;
+ opacity: 0.92;
+ }
+
+ /* Skeleton shimmer for "AI is thinking" states */
+ @keyframes shimmer{
+ 0%{ background-position: -300px 0; }
+ 100%{ background-position: 300px 0; }
+ }
+ .skeleton-line{
+ height: 14px;
+ border-radius: 6px;
+ background: linear-gradient(90deg, var(--grey-light) 25%, #F0EDE3 37%, var(--grey-light) 63%);
+ background-size: 600px 100%;
+ animation: shimmer 1.3s linear infinite;
+ }
+
+ /* ── TOAST (used for inline validation + copy/print confirmations) ── */
+ #toastHost{
+ position: fixed;
+ bottom: 22px;
+ left: 50%;
+ transform: translateX(-50%);
+ z-index: 1500;
+ display: flex;
+ flex-direction: column;
+ gap: 10px;
+ align-items: center;
+ pointer-events: none;
+ }
+ .toast{
+ pointer-events: auto;
+ background: var(--ink);
+ color: #fff;
+ padding: 12px 22px;
+ border-radius: 30px;
+ font-size: 13.5px;
+ font-weight: 600;
+ box-shadow: 0 6px 22px rgba(0,0,0,0.22);
+ display: flex;
+ align-items: center;
+ gap: 10px;
+ opacity: 0;
+ transform: translateY(12px);
+ animation: toastIn 0.35s cubic-bezier(.22,.9,.3,1) forwards;
+ max-width: 90vw;
+ text-align: left;
+ }
+ .toast.error{ background: var(--red); }
+ .toast.success{ background: var(--green-dark); }
+ .toast.leaving{ animation: toastOut 0.3s ease forwards; }
+ @keyframes toastIn{ from{ opacity:0; transform: translateY(14px); } to{ opacity:1; transform: translateY(0); } }
+ @keyframes toastOut{ to{ opacity:0; transform: translateY(10px); } }
+
+ /* Generic gentle press feedback for any clickable surface (perf-safe: transform/opacity only) */
+ .calc-btn:active, .report-btn:active, .export-btn:active,
+ .cgi-calc-btn:active, .ai-present-btn:active, .present-exit-btn:active{
+ transform: translateY(1px) scale(0.99);
+ }
+
+ .wrap{
+ max-width: 1100px;
+ margin: 0 auto;
+ padding: 0 20px 70px;
+ }
+
+ /* HEADER */
+ header.topbar{
+ background: #FFFFFF;
+ border-bottom: 2px solid var(--grey-light);
+ padding: 16px 20px;
+ position: sticky;
+ top: 0;
+ z-index: 30;
+ }
+ .topbar-inner{
+ max-width: 1100px;
+ margin: 0 auto;
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ flex-wrap: wrap;
+ gap: 10px;
+ }
+ .topbar-title{
+ font-family: 'Source Serif 4', Georgia, serif;
+ font-size: 19px;
+ font-weight: 700;
+ letter-spacing: .1px;
+ color: var(--green-dark);
+ display: flex;
+ align-items: center;
+ gap: 9px;
+ }
+ .user-badge{
+ background: var(--green-light);
+ border: 1.5px solid var(--green);
+ color: var(--green-dark);
+ font-weight: 600;
+ font-size: 14px;
+ padding: 7px 16px;
+ border-radius: 20px;
+ display: flex;
+ align-items: center;
+ gap: 6px;
+ }
+ .lang-switch{
+ display: flex;
+ background: var(--grey-light);
+ border: 1px solid var(--grey);
+ border-radius: 18px;
+ padding: 3px;
+ font-size: 12.5px;
+ }
+ .lang-switch button{
+ border: none;
+ background: transparent;
+ padding: 5px 12px;
+ border-radius: 14px;
+ cursor: pointer;
+ font-weight: 600;
+ color: var(--grey-dark);
+ }
+ .lang-switch button.active{
+ background: var(--green);
+ color: #fff;
+ }
+
+ /* SECTION TITLES */
+ .section{
+ margin-top: 38px;
+ }
+ .section-title{
+ font-family: 'Source Serif 4', Georgia, serif;
+ font-size: 19px;
+ font-weight: 700;
+ letter-spacing: .1px;
+ color: var(--ink);
+ margin-bottom: 16px;
+ display: flex;
+ align-items: center;
+ gap: 9px;
+ }
+ .section-sub{
+ font-size: 13.5px;
+ color: var(--grey-dark);
+ margin: -10px 0 16px;
+ }
+
+ /* CARD BASE */
+ .panel{
+ background: #FFFFFF;
+ border: 2px solid var(--grey-light);
+ border-radius: 14px;
+ padding: 28px;
+ box-shadow: 0 2px 10px rgba(33,31,26,0.05);
+ }
+
+ /* INPUT FORM */
+ .form-grid{
+ display: grid;
+ grid-template-columns: repeat(2, 1fr);
+ gap: 18px;
+ }
+ .field label{
+ display: block;
+ font-size: 13.5px;
+ font-weight: 600;
+ color: var(--brown-dark);
+ margin-bottom: 6px;
+ }
+ .field input, .field select{
+ width: 100%;
+ padding: 11px 14px;
+ border: 1.5px solid var(--grey);
+ border-radius: 8px;
+ font-size: 15px;
+ background: var(--cream);
+ color: var(--ink);
+ font-family: inherit;
+ }
+ .field input:focus, .field select:focus{
+ outline: none;
+ border-color: var(--green);
+ box-shadow: var(--focus-ring);
+ }
+ .field input:focus-visible, .field select:focus-visible{
+ outline: none;
+ box-shadow: var(--focus-ring);
+ }
+ .field input[aria-invalid="true"]{
+ border-color: var(--red);
+ background: var(--red-light);
+ }
+ .field-error{
+ min-height: 0;
+ font-size: 12.5px;
+ font-weight: 600;
+ color: var(--red);
+ margin-top: 6px;
+ display: none;
+ align-items: center;
+ gap: 5px;
+ }
+ .field-error.show{
+ display: flex;
+ animation: errorIn .25s cubic-bezier(.22,.9,.3,1);
+ }
+ @keyframes errorIn{ from{ opacity:0; transform: translateY(-4px); } to{ opacity:1; transform: translateY(0); } }
+ @keyframes fieldShake{
+ 10%,90%{ transform: translateX(-1px); }
+ 20%,80%{ transform: translateX(2px); }
+ 30%,50%,70%{ transform: translateX(-4px); }
+ 40%,60%{ transform: translateX(4px); }
+ }
+ .field.shake input{ animation: fieldShake .4s; }
+ @media (prefers-reduced-motion: reduce){
+ .field.shake input{ animation: none; }
+ }
+ .calc-btn{
+ margin-top: 22px;
+ width: 100%;
+ background: var(--green);
+ color: #fff;
+ border: none;
+ padding: 14px;
+ font-size: 16px;
+ font-weight: 700;
+ border-radius: 8px;
+ cursor: pointer;
+ transition: background .2s ease, transform .15s ease;
+ }
+ .calc-btn:hover{ background: var(--green-dark); }
+ .calc-btn:disabled{ cursor: progress; opacity: 0.85; }
+
+ /* RESULTS */
+ #results-section{ display: none; }
+ .result-grid{
+ display: grid;
+ grid-template-columns: repeat(3, 1fr);
+ gap: 18px;
+ }
+ .result-card{
+ background: #FFFFFF;
+ border: 2px solid var(--grey-light);
+ border-radius: 14px;
+ padding: 24px;
+ text-align: center;
+ box-shadow: 0 2px 10px rgba(33,31,26,0.05);
+ }
+ .result-card .label{
+ font-size: 13px;
+ font-weight: 600;
+ color: var(--grey-dark);
+ margin-bottom: 8px;
+ }
+ .result-card .value{
+ font-size: 28px;
+ font-weight: 800;
+ color: var(--green-dark);
+ }
+ .result-card .value small{
+ font-size: 14px;
+ font-weight: 600;
+ }
+ .badge{
+ display: inline-block;
+ margin-top: 10px;
+ padding: 6px 16px;
+ border-radius: 20px;
+ font-size: 13.5px;
+ font-weight: 700;
+ }
+ .badge.excellent{ background: var(--green-light); color: var(--green-dark); border: 1.5px solid var(--green); }
+ .badge.good{ background: var(--amber-light); color: var(--amber); border: 1.5px solid var(--amber); }
+ .badge.poor{ background: var(--red-light); color: var(--red); border: 1.5px solid var(--red); }
+
+ /* WATER SAVING OPPORTUNITY DETECTOR */
+ .detector-grid{
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 18px;
+ margin-bottom: 18px;
+ }
+ .detector-card{
+ border-radius: 14px;
+ padding: 24px;
+ text-align: center;
+ border: 2px solid var(--grey-light);
+ box-shadow: 0 2px 10px rgba(33,31,26,0.05);
+ }
+ .detector-card.collectable{
+ background: var(--green-light);
+ border-color: var(--green);
+ }
+ .detector-card.wasted{
+ background: var(--red-light);
+ border-color: var(--red);
+ }
+ .detector-icon{ font-size: 30px; margin-bottom: 8px; }
+ .detector-label{
+ font-size: 13.5px;
+ font-weight: 600;
+ color: var(--grey-dark);
+ margin-bottom: 8px;
+ }
+ .detector-value{
+ font-size: 26px;
+ font-weight: 800;
+ }
+ .detector-card.collectable .detector-value{ color: var(--green-dark); }
+ .detector-card.wasted .detector-value{ color: var(--red); }
+ .detector-value small{ font-size: 14px; font-weight: 600; }
+
+ .loss-panel .impact-statement{
+ display: block;
+ margin-top: 8px;
+ font-size: 14px;
+ font-weight: 700;
+ color: var(--brown-dark);
+ }
+
+ /* LOSS DETECTOR */
+ .loss-panel{
+ border-left: 5px solid var(--red);
+ background: var(--red-light);
+ border-radius: 14px;
+ padding: 22px 26px;
+ display: flex;
+ align-items: center;
+ gap: 18px;
+ }
+ .loss-panel.low-loss{
+ border-left-color: var(--green);
+ background: var(--green-light);
+ }
+ .loss-panel .loss-icon{ font-size: 32px; }
+ .loss-panel .loss-text strong{
+ font-size: 19px;
+ color: var(--red);
+ display: block;
+ margin-bottom: 4px;
+ }
+ .loss-panel.low-loss .loss-text strong{ color: var(--green-dark); }
+ .loss-panel .loss-text span{ font-size: 14px; color: var(--grey-dark); }
+
+ /* BEFORE / AFTER */
+ .compare-grid{
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 18px;
+ }
+ .compare-card{
+ border-radius: 14px;
+ padding: 22px;
+ border: 2px solid var(--grey-light);
+ }
+ .compare-card.before{ background: var(--red-light); border-color: #E3B6AE; }
+ .compare-card.after{ background: var(--green-light); border-color: var(--green); }
+ .compare-card h4{
+ margin: 0 0 14px;
+ font-size: 15px;
+ font-weight: 700;
+ }
+ .compare-card.before h4{ color: var(--red); }
+ .compare-card.after h4{ color: var(--green-dark); }
+ .compare-card .big-num{
+ font-size: 24px;
+ font-weight: 800;
+ }
+ .compare-card.before .big-num{ color: var(--red); }
+ .compare-card.after .big-num{ color: var(--green-dark); }
+ .bar-track{
+ margin-top: 14px;
+ height: 10px;
+ border-radius: 6px;
+ background: rgba(0,0,0,0.06);
+ overflow: hidden;
+ }
+ .bar-fill{
+ height: 100%;
+ border-radius: 6px;
+ width: 0%;
+ transition: width 1.1s cubic-bezier(.22,.9,.3,1);
+ }
+ .compare-card.before .bar-fill{ background: linear-gradient(90deg, var(--red), #D9534F); }
+ .compare-card.after .bar-fill{ background: linear-gradient(90deg, var(--green), #59B868); }
+ .compare-card .pct-label{
+ margin-top: 8px;
+ font-size: 12.5px;
+ font-weight: 700;
+ color: var(--grey-dark);
+ }
+ .compare-card.before .pct-label{ color: var(--red); }
+ .compare-card.after .pct-label{ color: var(--green-dark); }
+ .compare-card{ position: relative; overflow: hidden; }
+ .compare-card .drop-emoji{
+ position: absolute;
+ top: 14px;
+ right: 16px;
+ font-size: 20px;
+ opacity: 0.7;
+ }
+ .compare-vs{
+ text-align: center;
+ font-weight: 800;
+ color: var(--brown-dark);
+ font-size: 13px;
+ margin: -4px 0 10px;
+ letter-spacing: 1px;
+ }
+ .compare-card .big-num{ transition: color .3s; }
+ @keyframes pulseGlow{
+ 0%,100%{ box-shadow: 0 2px 10px rgba(63,140,74,0.08); }
+ 50%{ box-shadow: 0 2px 18px rgba(63,140,74,0.28); }
+ }
+ .compare-card.after.animating{ animation: pulseGlow 1.1s ease; }
+
+ /* RECOMMENDATIONS — ECO CARDS */
+ .reco-list{
+ display: grid;
+ grid-template-columns: repeat(2, 1fr);
+ gap: 16px;
+ }
+ .reco-card{
+ position: relative;
+ display: flex;
+ flex-direction: column;
+ gap: 10px;
+ border-radius: 14px;
+ padding: 18px 20px;
+ border: 2px solid var(--grey-light);
+ background: #FFFFFF;
+ box-shadow: 0 2px 10px rgba(33,31,26,0.05);
+ overflow: hidden;
+ transition: transform .2s ease, box-shadow .2s ease;
+ }
+ .reco-card:hover{ transform: translateY(-3px); box-shadow: 0 6px 18px rgba(33,31,26,0.10); }
+ .reco-card::before{
+ content: "";
+ position: absolute;
+ top: 0; left: 0; bottom: 0;
+ width: 5px;
+ }
+ .reco-card.tank::before{ background: var(--green); }
+ .reco-card.filter::before{ background: var(--amber); }
+ .reco-card.catchment::before{ background: var(--brown); }
+ .reco-card.rainfall::before{ background: #3B7FB0; }
+ .reco-card.priority::before{ background: var(--red); }
+ .reco-card.maintenance::before{ background: var(--grey-dark); }
+
+ .reco-top{ display: flex; align-items: center; gap: 10px; }
+ .reco-card .reco-icon{
+ font-size: 22px;
+ width: 38px; height: 38px;
+ flex-shrink: 0;
+ display: flex; align-items: center; justify-content: center;
+ border-radius: 10px;
+ background: var(--green-light);
+ }
+ .reco-card.filter .reco-icon{ background: var(--amber-light); }
+ .reco-card.catchment .reco-icon{ background: var(--brown-light); }
+ .reco-card.rainfall .reco-icon{ background: #E5F0F8; }
+ .reco-card.priority .reco-icon{ background: var(--red-light); }
+ .reco-card.maintenance .reco-icon{ background: var(--grey-light); }
+
+ .reco-card .reco-title{
+ font-weight: 700;
+ color: var(--ink);
+ font-size: 14.5px;
+ }
+ .reco-card .reco-detail{
+ font-size: 13.5px;
+ color: var(--grey-dark);
+ line-height: 1.5;
+ }
+ .reco-card .reco-tag{
+ align-self: flex-start;
+ font-size: 11px;
+ font-weight: 700;
+ text-transform: uppercase;
+ letter-spacing: .4px;
+ padding: 3px 10px;
+ border-radius: 12px;
+ color: var(--green-dark);
+ background: var(--green-light);
+ border: 1px solid var(--green);
+ }
+ .reco-card.filter .reco-tag{ color: var(--amber); background: var(--amber-light); border-color: var(--amber); }
+ .reco-card.catchment .reco-tag{ color: var(--brown-dark); background: var(--brown-light); border-color: var(--brown); }
+ .reco-card.rainfall .reco-tag{ color: #2B5E80; background: #E5F0F8; border-color: #3B7FB0; }
+ .reco-card.priority .reco-tag{ color: var(--red); background: var(--red-light); border-color: var(--red); }
+ .reco-card.maintenance .reco-tag{ color: var(--grey-dark); background: var(--grey-light); border-color: var(--grey); }
+
+ @media (max-width: 760px){
+ .reco-list{ grid-template-columns: 1fr; }
+ }
+
+ /* SEASONAL */
+ .season-grid{
+ display: grid;
+ grid-template-columns: repeat(3, 1fr);
+ gap: 18px;
+ }
+ .season-card{
+ background: #FFFFFF;
+ border: 2px solid var(--grey-light);
+ border-radius: 14px;
+ padding: 20px;
+ text-align: center;
+ box-shadow: 0 2px 10px rgba(33,31,26,0.05);
+ }
+ .season-card .season-icon{ font-size: 26px; margin-bottom: 8px; }
+ .season-card .season-name{
+ font-weight: 700;
+ font-size: 14.5px;
+ color: var(--ink);
+ margin-bottom: 6px;
+ }
+ .season-card .season-val{
+ font-size: 20px;
+ font-weight: 800;
+ color: var(--green-dark);
+ }
+
+ /* CTA */
+ .report-cta{
+ text-align: center;
+ margin-top: 44px;
+ padding: 32px;
+ border: 2px dashed var(--green);
+ border-radius: 14px;
+ background: var(--green-light);
+ }
+ .report-btn{
+ display: inline-block;
+ background: var(--green-dark);
+ color: #fff;
+ border: none;
+ padding: 14px 34px;
+ font-size: 16px;
+ font-weight: 700;
+ border-radius: 8px;
+ cursor: pointer;
+ margin-top: 12px;
+ transition: background .2s ease, transform .15s ease;
+ }
+ .report-btn:hover{ background: var(--green); }
+
+ @media (max-width: 760px){
+ .form-grid, .result-grid, .compare-grid, .season-grid{
+ grid-template-columns: 1fr;
+ }
+ .topbar-inner{ justify-content: center; text-align: center; }
+ }
+
+ /* ======= ENVIRONMENTAL IMPACT SECTION ======= */
+
+ .eco-section-header{
+ margin-top: 52px;
+ padding: 28px 32px 22px;
+ background: linear-gradient(135deg, #EBF5E8 0%, #F5EFDF 60%, #EEE5D0 100%);
+ border: 2px solid #B8D9B0;
+ border-radius: 18px;
+ text-align: center;
+ }
+ .eco-section-header .eco-main-title{
+ font-family: 'Source Serif 4', Georgia, serif;
+ font-size: 23px;
+ font-weight: 700;
+ color: var(--green-dark);
+ margin-bottom: 6px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ gap: 10px;
+ }
+ .eco-section-header .eco-subtitle{
+ font-size: 14px;
+ color: var(--grey-dark);
+ font-style: italic;
+ }
+ .eco-section-divider{
+ width: 60px;
+ height: 3px;
+ background: var(--green);
+ border-radius: 2px;
+ margin: 12px auto 0;
+ opacity: 0.5;
+ }
+
+ /* ECO IMPACT SCORE */
+ .eco-score-wrap{
+ display: flex;
+ justify-content: center;
+ margin-top: 30px;
+ }
+ .eco-score-card{
+ background: #fff;
+ border: 2px solid #C5E0BE;
+ border-radius: 20px;
+ padding: 36px 48px;
+ text-align: center;
+ box-shadow: 0 4px 18px rgba(63,140,74,0.08);
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ gap: 18px;
+ max-width: 420px;
+ width: 100%;
+ }
+ .eco-score-ring{
+ position: relative;
+ width: 150px;
+ height: 150px;
+ }
+ .eco-score-ring svg{
+ transform: rotate(-90deg);
+ }
+ .eco-score-ring-text{
+ position: absolute;
+ inset: 0;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ }
+ .eco-score-ring-text .ring-num{
+ font-size: 36px;
+ font-weight: 900;
+ color: var(--green-dark);
+ line-height: 1;
+ }
+ .eco-score-ring-text .ring-denom{
+ font-size: 13px;
+ font-weight: 600;
+ color: var(--grey-dark);
+ margin-top: 2px;
+ }
+ .eco-score-label{
+ font-size: 16px;
+ font-weight: 700;
+ color: var(--green-dark);
+ }
+ .eco-score-status{
+ display: inline-flex;
+ align-items: center;
+ gap: 6px;
+ padding: 6px 18px;
+ border-radius: 20px;
+ font-size: 13.5px;
+ font-weight: 700;
+ background: var(--green-light);
+ border: 1.5px solid var(--green);
+ color: var(--green-dark);
+ }
+ .eco-score-status.moderate{
+ background: var(--amber-light);
+ border-color: var(--amber);
+ color: var(--amber);
+ }
+ .eco-score-status.poor{
+ background: var(--red-light);
+ border-color: var(--red);
+ color: var(--red);
+ }
+
+ /* ECO IMPACT GRID */
+ .eco-impact-grid{
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 18px;
+ margin-top: 22px;
+ }
+ .eco-impact-card{
+ background: #fff;
+ border: 2px solid var(--grey-light);
+ border-radius: 16px;
+ padding: 26px;
+ box-shadow: 0 2px 10px rgba(33,31,26,0.05);
+ display: flex;
+ flex-direction: column;
+ gap: 12px;
+ transition: transform .2s ease, box-shadow .2s ease;
+ }
+ .eco-impact-card:hover{ transform: translateY(-3px); box-shadow: 0 8px 22px rgba(63,140,74,0.10); }
+ .eco-impact-card.household{ border-color: #B8D9B0; background: linear-gradient(135deg,#fff 70%,#F0FAF0); }
+ .eco-impact-card.trees{ border-color: #A5C890; background: linear-gradient(135deg,#fff 70%,#EAF5E5); }
+ .eco-impact-card.carbon{ border-color: #C8DDB8; background: linear-gradient(135deg,#fff 70%,#F2F8EE); }
+ .eco-impact-card.community{ border-color: #8BB87A; background: linear-gradient(135deg,#EBF5E4 0%,#fff 70%); grid-column: 1 / -1; }
+
+ .eco-card-icon{
+ font-size: 34px;
+ line-height: 1;
+ }
+ .eco-card-tag{
+ font-size: 11px;
+ font-weight: 700;
+ text-transform: uppercase;
+ letter-spacing: .6px;
+ color: var(--green);
+ margin-bottom: -4px;
+ }
+ .eco-card-headline{
+ font-size: 17px;
+ font-weight: 800;
+ color: var(--green-dark);
+ line-height: 1.25;
+ }
+ .eco-card-headline span.highlight-num{
+ font-size: 26px;
+ display: block;
+ margin-bottom: 2px;
+ }
+ .eco-card-body{
+ font-size: 13.5px;
+ color: var(--grey-dark);
+ line-height: 1.55;
+ }
+
+ /* CARBON PROGRESS */
+ .carbon-bar-track{
+ height: 8px;
+ background: var(--grey-light);
+ border-radius: 6px;
+ overflow: hidden;
+ margin-top: 4px;
+ }
+ .carbon-bar-fill{
+ height: 100%;
+ background: linear-gradient(90deg, var(--green-dark), #72C27E);
+ border-radius: 6px;
+ width: 0%;
+ transition: width 1.4s cubic-bezier(.22,.9,.3,1);
+ }
+
+ /* COMMUNITY CARD INNER */
+ .community-inner{
+ display: flex;
+ gap: 24px;
+ align-items: center;
+ flex-wrap: wrap;
+ }
+ .community-left{
+ flex: 1;
+ min-width: 200px;
+ }
+ .community-stat-row{
+ display: flex;
+ align-items: center;
+ gap: 16px;
+ background: rgba(63,140,74,0.06);
+ border: 1.5px solid #C5E0BE;
+ border-radius: 12px;
+ padding: 14px 18px;
+ margin-top: 10px;
+ }
+ .community-stat-num{
+ font-size: 26px;
+ font-weight: 900;
+ color: var(--green-dark);
+ white-space: nowrap;
+ }
+ .community-stat-label{
+ font-size: 13px;
+ color: var(--grey-dark);
+ }
+ .community-illustration{
+ font-size: 52px;
+ text-align: center;
+ line-height: 1;
+ flex-shrink: 0;
+ }
+
+ /* BADGES ROW */
+ .eco-badges-section{
+ margin-top: 22px;
+ }
+ .eco-badges-title{
+ font-size: 15px;
+ font-weight: 700;
+ color: var(--ink);
+ margin-bottom: 14px;
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ }
+ .eco-badges-row{
+ display: flex;
+ gap: 14px;
+ flex-wrap: wrap;
+ }
+ .eco-badge-pill{
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ padding: 10px 20px;
+ border-radius: 40px;
+ font-size: 13.5px;
+ font-weight: 700;
+ border: 2px solid;
+ transition: transform .2s ease, box-shadow .2s ease;
+ cursor: default;
+ }
+ .eco-badge-pill:hover{ transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.10); }
+ .eco-badge-pill .bp-icon{ font-size: 18px; }
+ .eco-badge-pill.b1{ background: #EBF7EE; border-color: #80C490; color: #245C2C; }
+ .eco-badge-pill.b2{ background: #EAF3E0; border-color: #91BB6A; color: #3A6620; }
+ .eco-badge-pill.b3{ background: #E3EFF8; border-color: #7AABD4; color: #1F5278; }
+ .eco-badge-pill.b4{ background: #FBF3E0; border-color: #C9A040; color: #7A5A10; }
+
+ /* FINAL MESSAGE */
+ .eco-final-message{
+ margin-top: 28px;
+ padding: 36px 32px;
+ background: linear-gradient(120deg, #EBF5E8 0%, #F0EAD8 100%);
+ border: 2px solid #A8CF9A;
+ border-radius: 18px;
+ text-align: center;
+ position: relative;
+ overflow: hidden;
+ }
+ .eco-final-message::before{
+ content: '';
+ position: absolute;
+ font-size: 90px;
+ opacity: 0.05;
+ top: -10px;
+ right: -10px;
+ pointer-events: none;
+ }
+ .eco-final-message .quote-icon{
+ font-size: 36px;
+ margin-bottom: 10px;
+ display: block;
+ }
+ .eco-final-message .quote-text{
+ font-size: 20px;
+ font-weight: 800;
+ color: var(--green-dark);
+ line-height: 1.4;
+ max-width: 540px;
+ margin: 0 auto 12px;
+ }
+ .eco-final-message .quote-sub{
+ font-size: 13.5px;
+ color: var(--grey-dark);
+ font-style: italic;
+ }
+ .eco-final-message .eco-icons-row{
+ display: flex;
+ justify-content: center;
+ gap: 16px;
+ margin-top: 20px;
+ font-size: 26px;
+ }
+
+ @media (max-width: 760px){
+ .eco-impact-grid{ grid-template-columns: 1fr; }
+ .eco-impact-card.community{ grid-column: 1; }
+ .eco-score-card{ padding: 28px 24px; }
+ .eco-badges-row{ gap: 10px; }
+ .eco-badge-pill{ font-size: 12.5px; padding: 8px 14px; }
+ .eco-final-message .quote-text{ font-size: 17px; }
+ }
+
+ /* ======= COMMUNITY & GOVERNMENT INSIGHTS ======= */
+
+ /* Fade-up animation */
+ @keyframes fadeUp {
+ from { opacity: 0; transform: translateY(22px); }
+ to { opacity: 1; transform: translateY(0); }
+ }
+ .cgi-fade { animation: fadeUp .55s ease both; }
+ .cgi-fade:nth-child(1){ animation-delay:.05s; }
+ .cgi-fade:nth-child(2){ animation-delay:.12s; }
+ .cgi-fade:nth-child(3){ animation-delay:.19s; }
+ .cgi-fade:nth-child(4){ animation-delay:.26s; }
+ .cgi-fade:nth-child(5){ animation-delay:.33s; }
+
+ .cgi-section-header {
+ margin-top: 54px;
+ padding: 28px 32px 22px;
+ background: linear-gradient(135deg, #EDF3FA 0%, #F5EFDF 55%, #EEE5D0 100%);
+ border: 2px solid #B0C8D8;
+ border-radius: 18px;
+ text-align: center;
+ }
+ .cgi-section-header .cgi-main-title {
+ font-family: 'Source Serif 4', Georgia, serif;
+ font-size: 23px;
+ font-weight: 700;
+ color: #1A3F5C;
+ display: flex; align-items: center; justify-content: center; gap: 10px;
+ margin-bottom: 6px;
+ }
+ .cgi-section-header .cgi-subtitle {
+ font-size: 14px; color: var(--grey-dark); font-style: italic;
+ }
+ .cgi-divider {
+ width: 60px; height: 3px;
+ background: linear-gradient(90deg, var(--green), #3B7FB0);
+ border-radius: 2px; margin: 12px auto 0; opacity: .55;
+ }
+
+ /* Shared card shell */
+ .cgi-card {
+ background: #fff;
+ border: 2px solid var(--grey-light);
+ border-radius: 16px;
+ padding: 26px 28px;
+ box-shadow: 0 2px 12px rgba(33,31,26,.06);
+ transition: transform .2s ease, box-shadow .2s ease;
+ }
+ .cgi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(33,31,26,.10); }
+ .cgi-card-title {
+ font-family: 'Source Serif 4', Georgia, serif;
+ font-size: 16.5px; font-weight: 700; color: var(--ink);
+ display: flex; align-items: center; gap: 9px; margin-bottom: 4px;
+ }
+ .cgi-card-sub {
+ font-size: 13px; color: var(--grey-dark); margin-bottom: 18px;
+ }
+
+ /* ── 1. LEADERBOARD ── */
+ .cgi-lb-row {
+ display: flex; align-items: center; gap: 12px;
+ padding: 12px 14px;
+ border-radius: 10px;
+ margin-bottom: 8px;
+ border: 1.5px solid var(--grey-light);
+ background: var(--cream);
+ transition: background .2s;
+ }
+ .cgi-lb-row:hover { background: var(--green-light); border-color: #B0D4B4; }
+ .cgi-lb-rank {
+ font-size: 18px; font-weight: 900; color: var(--green-dark);
+ min-width: 28px; text-align: center;
+ }
+ .cgi-lb-rank.gold { color: #C9870A; }
+ .cgi-lb-rank.silver { color: #7A8A90; }
+ .cgi-lb-rank.bronze { color: #8B5A2B; }
+ .cgi-lb-info { flex: 1; }
+ .cgi-lb-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+ .cgi-lb-meta { font-size: 12px; color: var(--grey-dark); }
+ .cgi-lb-right { min-width: 120px; }
+ .cgi-lb-liters { font-size: 14px; font-weight: 800; color: var(--green-dark); text-align: right; margin-bottom: 4px; }
+ .cgi-lb-bar-track { height: 6px; background: var(--grey-light); border-radius: 4px; overflow: hidden; }
+ .cgi-lb-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--green-dark), #72C27E); transition: width 1.2s cubic-bezier(.22,.9,.3,1); width: 0%; }
+ .cgi-lb-row.user-row { background: var(--green-light); border-color: var(--green); }
+ .cgi-lb-row.user-row .cgi-lb-name { color: var(--green-dark); }
+
+ /* ── 2. SCHEME ELIGIBILITY ── */
+ .scheme-grid {
+ display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+ }
+ .scheme-item {
+ border-radius: 12px; padding: 16px 18px;
+ border: 1.5px solid var(--grey-light);
+ display: flex; flex-direction: column; gap: 6px;
+ }
+ .scheme-item.eligible { background: var(--green-light); border-color: #8DC99A; }
+ .scheme-item.ineligible { background: #FAFAF7; border-color: var(--grey-light); opacity: .7; }
+ .scheme-item .si-header { display: flex; align-items: center; gap: 8px; }
+ .scheme-item .si-icon { font-size: 20px; }
+ .scheme-item .si-name { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+ .scheme-item .si-status {
+ font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+ padding: 2px 10px; border-radius: 10px;
+ }
+ .eligible .si-status { background: var(--green); color: #fff; }
+ .ineligible .si-status { background: var(--grey-light); color: var(--grey-dark); }
+ .scheme-item .si-amount { font-size: 18px; font-weight: 900; color: var(--green-dark); }
+ .scheme-item .si-desc { font-size: 12px; color: var(--grey-dark); line-height: 1.45; }
+ .scheme-total {
+ margin-top: 14px; padding: 14px 18px;
+ background: linear-gradient(90deg, #EBF5E8, #F5EFDF);
+ border: 1.5px solid #96CC9E; border-radius: 12px;
+ display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+ }
+ .scheme-total .st-label { font-size: 14px; font-weight: 700; color: var(--green-dark); }
+ .scheme-total .st-amount { font-size: 22px; font-weight: 900; color: var(--green-dark); }
+
+ /* ── 3. COMMUNITY CALCULATOR ── */
+ .cgi-calc-row { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+ .cgi-calc-input-wrap { flex: 1; min-width: 160px; }
+ .cgi-calc-input-wrap label {
+ display: block; font-size: 13px; font-weight: 600;
+ color: var(--brown-dark); margin-bottom: 6px;
+ }
+ .cgi-calc-input {
+ width: 100%; padding: 11px 14px;
+ border: 1.5px solid var(--grey);
+ border-radius: 8px; font-size: 15px;
+ background: var(--cream); color: var(--ink);
+ font-family: inherit;
+ }
+ .cgi-calc-input:focus { outline: none; border-color: var(--green); }
+ .cgi-calc-btn {
+ padding: 11px 26px; background: var(--green);
+ color: #fff; border: none; border-radius: 8px;
+ font-size: 14px; font-weight: 700; cursor: pointer;
+ white-space: nowrap;
+ transition: background .2s ease, transform .15s ease;
+ }
+ .cgi-calc-btn:hover { background: var(--green-dark); }
+ .cgi-calc-results {
+ display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+ margin-top: 18px;
+ }
+ .cgi-cr-card {
+ background: var(--green-light); border: 1.5px solid #9DCBA8;
+ border-radius: 12px; padding: 18px 16px; text-align: center;
+ }
+ .cgi-cr-card .cr-icon { font-size: 24px; margin-bottom: 6px; }
+ .cgi-cr-card .cr-num { font-size: 22px; font-weight: 900; color: var(--green-dark); }
+ .cgi-cr-card .cr-label { font-size: 12px; color: var(--grey-dark); margin-top: 3px; font-weight: 600; }
+
+ /* ── 4. SDG GOALS ── */
+ .sdg-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+ .sdg-card {
+ border-radius: 14px; padding: 22px 20px; text-align: center;
+ border: 2px solid;
+ display: flex; flex-direction: column; align-items: center; gap: 10px;
+ transition: transform .2s ease, box-shadow .2s ease;
+ }
+ .sdg-card:hover { transform: translateY(-4px); box-shadow: 0 8px 22px rgba(0,0,0,.09); }
+ .sdg-card.sdg6 { background: #E8F4FD; border-color: #5BAEE0; }
+ .sdg-card.sdg11 { background: #FFF3E0; border-color: #F0A030; }
+ .sdg-card.sdg13 { background: #EAF5E8; border-color: #52A855; }
+ .sdg-badge {
+ width: 54px; height: 54px; border-radius: 14px;
+ display: flex; align-items: center; justify-content: center;
+ font-size: 26px; font-weight: 900;
+ }
+ .sdg6 .sdg-badge { background: #1E7AB8; color: #fff; }
+ .sdg11 .sdg-badge { background: #F09000; color: #fff; }
+ .sdg13 .sdg-badge { background: #3A7D41; color: #fff; }
+ .sdg-num { font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
+ .sdg6 .sdg-num { color: #1E7AB8; }
+ .sdg11 .sdg-num { color: #C07800; }
+ .sdg13 .sdg-num { color: #2E6634; }
+ .sdg-name { font-size: 14.5px; font-weight: 800; color: var(--ink); }
+ .sdg-desc { font-size: 12.5px; color: var(--grey-dark); line-height: 1.5; }
+ .sdg-contrib {
+ font-size: 12px; font-weight: 700; padding: 4px 12px;
+ border-radius: 20px; margin-top: 4px;
+ }
+ .sdg6 .sdg-contrib { background: #CCE8F8; color: #1E7AB8; }
+ .sdg11 .sdg-contrib { background: #FAE3B4; color: #9A6000; }
+ .sdg13 .sdg-contrib { background: #C8E8CA; color: #2E6634; }
+
+ /* ── 5. PROJECTION CHART ── */
+ .proj-chart-wrap { position: relative; }
+ .proj-canvas-container {
+ position: relative; width: 100%; overflow: hidden;
+ }
+ .proj-chart-svg { width: 100%; height: 220px; display: block; }
+ .proj-year-labels {
+ display: flex; justify-content: space-between;
+ padding: 6px 0 0; font-size: 12px; font-weight: 700;
+ color: var(--grey-dark);
+ }
+ .proj-legend {
+ display: flex; gap: 20px; flex-wrap: wrap;
+ font-size: 12.5px; color: var(--grey-dark);
+ margin-bottom: 14px;
+ }
+ .proj-legend span { display: flex; align-items: center; gap: 6px; }
+ .proj-legend .dot {
+ width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+ }
+ .proj-summary-row {
+ display: flex; gap: 14px; flex-wrap: wrap; margin-top: 16px;
+ }
+ .proj-sum-card {
+ flex: 1; min-width: 130px; border-radius: 12px;
+ padding: 14px 16px; border: 1.5px solid;
+ text-align: center;
+ }
+ .proj-sum-card.blue { background: #EBF4FD; border-color: #7AABD4; }
+ .proj-sum-card.green { background: var(--green-light); border-color: #8DC99A; }
+ .proj-sum-card.brown { background: var(--brown-light); border-color: #B8946A; }
+ .proj-sum-card .ps-num { font-size: 20px; font-weight: 900; }
+ .blue .ps-num { color: #1E5A8A; }
+ .green .ps-num { color: var(--green-dark); }
+ .brown .ps-num { color: var(--brown-dark); }
+ .proj-sum-card .ps-label { font-size: 12px; color: var(--grey-dark); margin-top: 3px; }
+
+ /* ── 6. EXPORT REPORT ── */
+ .export-card {
+ margin-top: 22px;
+ background: linear-gradient(120deg, #EBF5E8 0%, #EDF3FA 100%);
+ border: 2px solid #98C4A4; border-radius: 18px;
+ padding: 32px 36px;
+ display: flex; align-items: center; gap: 28px; flex-wrap: wrap;
+ }
+ .export-left { flex: 1; min-width: 200px; }
+ .export-title { font-size: 18px; font-weight: 800; color: var(--green-dark); margin-bottom: 6px; }
+ .export-desc { font-size: 13.5px; color: var(--grey-dark); line-height: 1.55; }
+ .export-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+ .export-chip {
+ font-size: 12px; font-weight: 700;
+ padding: 4px 12px; border-radius: 20px;
+ background: #fff; border: 1.5px solid #9DCBA8; color: var(--green-dark);
+ }
+ .export-btn-wrap { display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+ .export-btn {
+ padding: 13px 28px; border: none; border-radius: 10px;
+ font-size: 14.5px; font-weight: 700; cursor: pointer;
+ display: flex; align-items: center; gap: 8px;
+ transition: transform .15s ease, box-shadow .15s ease;
+ }
+ .export-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,.14); }
+ .export-btn.primary { background: var(--green-dark); color: #fff; }
+ .export-btn.secondary { background: #fff; color: var(--green-dark); border: 2px solid var(--green); }
+
+ /* ======= AI INTELLIGENCE CENTER ======= */
+
+ .ai-section-header {
+ margin-top: 32px;
+ padding: 28px 32px 22px;
+ background: linear-gradient(135deg, #F0EAFB 0%, #F5EFDF 55%, #EEE5D0 100%);
+ border: 2px solid #C7B6E8;
+ border-radius: 18px;
+ text-align: center;
+ position: relative;
+ overflow: hidden;
+ }
+ .ai-section-header::before {
+ content: '';
+ position: absolute;
+ font-size: 100px;
+ opacity: 0.045;
+ top: -16px;
+ left: -10px;
+ pointer-events: none;
+ }
+ .ai-section-header .ai-main-title {
+ font-family: 'Source Serif 4', Georgia, serif;
+ font-size: 23px; font-weight: 700; color: #4A3470;
+ display: flex; align-items: center; justify-content: center; gap: 10px;
+ margin-bottom: 6px;
+ }
+ .ai-section-header .ai-subtitle { font-size: 14px; color: var(--grey-dark); font-style: italic; }
+ .ai-divider {
+ width: 60px; height: 3px;
+ background: linear-gradient(90deg, var(--green), #8A6FC0);
+ border-radius: 2px; margin: 12px auto 0; opacity: .55;
+ }
+ .ai-engine-note {
+ margin-top: 10px; font-size: 12px; color: var(--grey-dark);
+ display: flex; align-items: center; justify-content: center; gap: 6px;
+ }
+ .ai-engine-note .pulse-dot {
+ width: 7px; height: 7px; border-radius: 50%;
+ background: var(--green); flex-shrink: 0;
+ animation: aiPulse 1.6s ease-in-out infinite;
+ }
+ @keyframes aiPulse { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.4; transform:scale(.7); } }
+
+ .ai-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; }
+
+ /* ── AI WATER ADVISOR ── */
+ .ai-advisor-card { border-color: #C7B6E8; }
+ .ai-advisor-list { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+ .ai-advisor-item {
+ display: flex; gap: 12px; align-items: flex-start;
+ border-radius: 12px; padding: 14px 16px;
+ background: #FAF7FD; border: 1.5px solid #E2D6F5;
+ }
+ .ai-advisor-num {
+ flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+ background: #8A6FC0; color: #fff; font-size: 12.5px; font-weight: 800;
+ display: flex; align-items: center; justify-content: center;
+ }
+ .ai-advisor-text strong { display: block; font-size: 14px; color: var(--ink); margin-bottom: 3px; }
+ .ai-advisor-text span { font-size: 13px; color: var(--grey-dark); line-height: 1.5; }
+
+ /* ── RISK ANALYSIS ── */
+ .ai-risk-card { border-color: #E5D7B8; }
+ .ai-risk-badge-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+ .ai-risk-badge {
+ display: inline-flex; align-items: center; gap: 8px;
+ padding: 8px 20px; border-radius: 20px;
+ font-size: 14.5px; font-weight: 800;
+ }
+ .ai-risk-badge.low { background: var(--green-light); color: var(--green-dark); border: 1.5px solid var(--green); }
+ .ai-risk-badge.medium { background: var(--amber-light); color: var(--amber); border: 1.5px solid var(--amber); }
+ .ai-risk-badge.high { background: var(--red-light); color: var(--red); border: 1.5px solid var(--red); }
+ .ai-risk-meter-track { height: 10px; border-radius: 6px; background: var(--grey-light); overflow: hidden; margin-top: 14px; }
+ .ai-risk-meter-fill { height: 100%; border-radius: 6px; width: 0%; transition: width 1.1s cubic-bezier(.22,.9,.3,1); }
+ .ai-risk-meter-fill.low { background: linear-gradient(90deg, var(--green-dark), #72C27E); }
+ .ai-risk-meter-fill.medium { background: linear-gradient(90deg, #B8862E, #E0B25E); }
+ .ai-risk-meter-fill.high { background: linear-gradient(90deg, var(--red), #D9534F); }
+ .ai-risk-factors { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+ .ai-risk-factor {
+ display: flex; align-items: center; gap: 10px;
+ font-size: 13px; padding: 9px 12px;
+ border-radius: 10px; background: var(--cream);
+ border: 1.5px solid var(--grey-light);
+ }
+ .ai-risk-factor .rf-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+ .ai-risk-factor.flag .rf-dot { background: var(--red); }
+ .ai-risk-factor.ok .rf-dot { background: var(--green); }
+ .ai-risk-factor .rf-label { flex: 1; color: var(--ink); font-weight: 600; }
+ .ai-risk-factor .rf-val { color: var(--grey-dark); font-weight: 700; font-size: 12.5px; }
+
+ /* ── SMART RECOMMENDATIONS TIMELINE ── */
+ .ai-timeline-card { margin-top: 18px; }
+ .ai-timeline {
+ position: relative;
+ display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px;
+ margin-top: 18px;
+ }
+ .ai-timeline::before {
+ content: ''; position: absolute; top: 22px; left: 6%; right: 6%; height: 3px;
+ background: repeating-linear-gradient(90deg, #C9BFE0 0, #C9BFE0 8px, transparent 8px, transparent 16px);
+ z-index: 0;
+ }
+ .ai-timeline-stage { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 10px; }
+ .ai-timeline-head {
+ display: flex; align-items: center; gap: 10px;
+ }
+ .ai-timeline-dot {
+ width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+ display: flex; align-items: center; justify-content: center;
+ font-size: 20px; border: 3px solid #fff;
+ box-shadow: 0 0 0 2px var(--grey-light);
+ }
+ .ai-timeline-stage.immediate .ai-timeline-dot { background: var(--red-light); box-shadow: 0 0 0 2px var(--red); }
+ .ai-timeline-stage.season .ai-timeline-dot { background: var(--amber-light); box-shadow: 0 0 0 2px var(--amber); }
+ .ai-timeline-stage.longterm .ai-timeline-dot { background: var(--green-light); box-shadow: 0 0 0 2px var(--green); }
+ .ai-timeline-when { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--grey-dark); }
+ .ai-timeline-title { font-size: 14.5px; font-weight: 800; color: var(--ink); }
+ .ai-timeline-card-body {
+ background: #FAFAF7; border: 1.5px solid var(--grey-light); border-radius: 12px;
+ padding: 14px 16px; font-size: 13px; color: var(--grey-dark); line-height: 1.55; flex: 1;
+ }
+ @media (max-width: 760px) {
+ .ai-timeline { grid-template-columns: 1fr; }
+ .ai-timeline::before { display: none; }
+ }
+
+ /* ── AI SUSTAINABILITY SCORE GAUGE ── */
+ .ai-score-card { margin-top: 18px; display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+ .ai-gauge-wrap { position: relative; width: 170px; height: 170px; flex-shrink: 0; margin: 0 auto; }
+ .ai-gauge-wrap svg { transform: rotate(-90deg); }
+ .ai-gauge-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+ .ai-gauge-text .gauge-num { font-size: 38px; font-weight: 900; color: #5A3F8C; line-height: 1; }
+ .ai-gauge-text .gauge-denom { font-size: 12.5px; font-weight: 700; color: var(--grey-dark); margin-top: 2px; }
+ .ai-score-info { flex: 1; min-width: 220px; }
+ .ai-score-info .ai-score-tag {
+ font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px;
+ color: #5A3F8C; margin-bottom: 6px;
+ }
+ .ai-score-info .ai-score-verdict { font-size: 17px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+ .ai-score-info .ai-score-desc { font-size: 13.5px; color: var(--grey-dark); line-height: 1.55; }
+ .ai-score-breakdown { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+ .ai-score-bd-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+ .ai-score-bd-row .bd-label { width: 110px; flex-shrink: 0; color: var(--grey-dark); font-weight: 600; }
+ .ai-score-bd-track { flex: 1; height: 7px; border-radius: 5px; background: var(--grey-light); overflow: hidden; }
+ .ai-score-bd-fill { height: 100%; border-radius: 5px; width: 0%; transition: width 1.2s cubic-bezier(.22,.9,.3,1); background: linear-gradient(90deg, #8A6FC0, #5A3F8C); }
+ .ai-score-bd-row .bd-val { width: 32px; text-align: right; font-weight: 800; color: #5A3F8C; }
+
+ /* ── ACHIEVEMENT SYSTEM ── */
+ .ai-achieve-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 18px; }
+ .ai-achieve-badge {
+ border-radius: 14px; padding: 20px 14px; text-align: center;
+ border: 2px solid var(--grey-light); background: #FAFAF7;
+ display: flex; flex-direction: column; align-items: center; gap: 8px;
+ transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
+ opacity: .45; filter: grayscale(0.6);
+ }
+ .ai-achieve-badge.unlocked {
+ opacity: 1; filter: none;
+ background: linear-gradient(145deg, #FFFFFF 60%, #F3EEFB);
+ border-color: #C7B6E8;
+ box-shadow: 0 4px 14px rgba(90,63,140,0.10);
+ }
+ .ai-achieve-badge.unlocked:hover { transform: translateY(-4px); box-shadow: 0 8px 22px rgba(90,63,140,0.18); }
+ .ai-achieve-icon-wrap {
+ width: 56px; height: 56px; border-radius: 50%;
+ display: flex; align-items: center; justify-content: center;
+ font-size: 26px; background: var(--grey-light);
+ }
+ .ai-achieve-badge.unlocked .ai-achieve-icon-wrap { background: linear-gradient(145deg, #8A6FC0, #5A3F8C); }
+ .ai-achieve-name { font-size: 13px; font-weight: 800; color: var(--ink); }
+ .ai-achieve-status { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--grey-dark); }
+ .ai-achieve-badge.unlocked .ai-achieve-status { color: #5A3F8C; }
+ .ai-achieve-desc { font-size: 11.5px; color: var(--grey-dark); line-height: 1.4; }
+ @media (max-width: 760px) { .ai-achieve-grid { grid-template-columns: 1fr 1fr; } }
+
+ /* ── PRESENTATION MODE ── */
+ .ai-present-trigger {
+ margin-top: 18px; display: flex; align-items: center; justify-content: space-between;
+ gap: 14px; flex-wrap: wrap;
+ padding: 18px 22px; border-radius: 14px;
+ background: linear-gradient(120deg, #F0EAFB 0%, #EBF5E8 100%);
+ border: 2px solid #C7B6E8;
+ }
+ .ai-present-trigger .pt-text strong { display: block; font-size: 14.5px; color: var(--ink); }
+ .ai-present-trigger .pt-text span { font-size: 12.5px; color: var(--grey-dark); }
+ .ai-present-btn {
+ padding: 12px 26px; border: none; border-radius: 10px;
+ font-size: 14px; font-weight: 700; cursor: pointer;
+ background: #5A3F8C; color: #fff; white-space: nowrap;
+ display: flex; align-items: center; gap: 8px;
+ transition: transform .15s ease, box-shadow .15s ease;
+ }
+ .ai-present-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(90,63,140,.3); background: #4A3470; }
+
+ #presentOverlay {
+ position: fixed; inset: 0; z-index: 1000;
+ background: var(--cream);
+ display: none;
+ flex-direction: column;
+ overflow-y: auto;
+ }
+ #presentOverlay.active { display: flex; }
+ .present-topbar {
+ position: sticky; top: 0; z-index: 5;
+ display: flex; align-items: center; justify-content: space-between;
+ padding: 18px 32px;
+ background: #FFFFFF; border-bottom: 2px solid var(--grey-light);
+ }
+ .present-topbar .pt-title { font-size: 17px; font-weight: 800; color: #4A3470; display: flex; align-items: center; gap: 10px; }
+ .present-exit-btn {
+ border: none; background: var(--red-light); color: var(--red);
+ padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 13.5px; cursor: pointer;
+ transition: background .2s ease, transform .15s ease;
+ }
+ .present-exit-btn:hover { background: #F5D9D5; }
+ .present-body { max-width: 1200px; width: 100%; margin: 0 auto; padding: 48px 36px 80px; }
+ .present-hero {
+ text-align: center; margin-bottom: 56px;
+ animation: fadeUp .6s ease both;
+ }
+ .present-hero .ph-eyebrow { font-size: 14px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #8A6FC0; margin-bottom: 10px; }
+ .present-hero .ph-num { font-size: 96px; font-weight: 900; color: #5A3F8C; line-height: 1; }
+ .present-hero .ph-sub { font-size: 18px; color: var(--grey-dark); margin-top: 10px; }
+ .present-grid {
+ display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px;
+ margin-bottom: 56px;
+ }
+ .present-stat-card {
+ background: #fff; border: 2px solid var(--grey-light); border-radius: 20px;
+ padding: 36px 28px; text-align: center;
+ animation: fadeUp .6s ease both;
+ box-shadow: 0 4px 18px rgba(33,31,26,.06);
+ }
+ .present-stat-card:nth-child(1){ animation-delay: .1s; }
+ .present-stat-card:nth-child(2){ animation-delay: .2s; }
+ .present-stat-card:nth-child(3){ animation-delay: .3s; }
+ .present-stat-card .psc-icon { font-size: 40px; margin-bottom: 14px; }
+ .present-stat-card .psc-num { font-size: 38px; font-weight: 900; color: var(--green-dark); line-height: 1; }
+ .present-stat-card .psc-label { font-size: 14.5px; color: var(--grey-dark); margin-top: 10px; font-weight: 600; }
+ .present-section-title {
+ font-size: 22px; font-weight: 800; color: var(--ink);
+ margin: 0 0 24px; display: flex; align-items: center; gap: 10px;
+ animation: fadeUp .6s ease both;
+ }
+ .present-reco-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 56px; }
+ .present-reco-card {
+ background: #fff; border: 2px solid #E2D6F5; border-radius: 18px;
+ padding: 28px 26px; animation: fadeUp .6s ease both;
+ box-shadow: 0 4px 16px rgba(90,63,140,.06);
+ }
+ .present-reco-card:nth-child(1){ animation-delay: .1s; }
+ .present-reco-card:nth-child(2){ animation-delay: .2s; }
+ .present-reco-card:nth-child(3){ animation-delay: .3s; }
+ .present-reco-card .prc-num {
+ width: 38px; height: 38px; border-radius: 50%; background: #5A3F8C; color: #fff;
+ display: flex; align-items: center; justify-content: center; font-weight: 800; margin-bottom: 14px;
+ }
+ .present-reco-card .prc-title { font-size: 16px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+ .present-reco-card .prc-detail { font-size: 13.5px; color: var(--grey-dark); line-height: 1.55; }
+ .present-badges-row { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+ .present-badge {
+ display: flex; flex-direction: column; align-items: center; gap: 8px;
+ padding: 22px 26px; border-radius: 16px;
+ background: linear-gradient(145deg, #FFFFFF 60%, #F3EEFB);
+ border: 2px solid #C7B6E8; min-width: 140px;
+ animation: fadeUp .6s ease both;
+ }
+ .present-badge .pb-icon { font-size: 32px; }
+ .present-badge .pb-name { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+
+ @media (max-width: 760px) {
+ .present-grid, .present-reco-grid { grid-template-columns: 1fr; }
+ .present-hero .ph-num { font-size: 60px; }
+ .present-body { padding: 32px 20px 60px; }
+ }
+
+ /* ===================================================
+ MICRO-INTERACTIONS — applied to cards that previously
+ had no hover/focus feedback. transform + box-shadow
+ only (GPU-friendly, no layout thrash).
+ =================================================== */
+ .result-card, .detector-card, .season-card, .scheme-item,
+ .proj-sum-card, .cgi-cr-card, .sdg-card, .compare-card,
+ .eco-impact-card, .present-stat-card, .present-reco-card{
+ transition: transform .2s cubic-bezier(.22,.9,.3,1), box-shadow .2s ease;
+ }
+ .result-card:hover, .detector-card:hover, .season-card:hover,
+ .scheme-item:hover, .proj-sum-card:hover, .cgi-cr-card:hover,
+ .compare-card:hover, .present-stat-card:hover, .present-reco-card:hover{
+ transform: translateY(-3px);
+ box-shadow: 0 8px 20px rgba(33,31,26,0.10);
+ }
+ .eco-badge-pill, .ai-achieve-badge.unlocked, .cgi-lb-row{
+ cursor: default;
+ }
+ /* Tactile press feedback (mouse + touch) without layout shift */
+ .reco-card:active, .eco-impact-card:active, .scheme-item:active,
+ .sdg-card:active, .cgi-card:active, .ai-achieve-badge.unlocked:active{
+ transform: scale(0.985);
+ }
+ /* Tiny icon "breathe" on hover for cards that carry a leading icon/emoji */
+ .detector-icon, .season-icon, .eco-card-icon{
+ transition: transform .25s cubic-bezier(.22,.9,.3,1);
+ }
+ .detector-card:hover .detector-icon,
+ .season-card:hover .season-icon,
+ .eco-impact-card:hover .eco-card-icon{
+ transform: scale(1.12) rotate(-4deg);
+ }
+ @media (prefers-reduced-motion: reduce){
+ .detector-card:hover .detector-icon,
+ .season-card:hover .season-icon,
+ .eco-impact-card:hover .eco-card-icon{ transform: none; }
+ }
+
+ /* ===================================================
+ GUIDED WALKTHROUGH MODE (for judges / demo)
+ =================================================== */
+ .tour-trigger-row{
+ display: flex; align-items: center; justify-content: flex-end;
+ gap: 10px; margin-top: -8px; margin-bottom: 18px; flex-wrap: wrap;
+ }
+ .tour-btn{
+ display: inline-flex; align-items: center; gap: 8px;
+ padding: 10px 20px; border-radius: 30px;
+ background: #fff; border: 2px solid var(--purple-light);
+ color: var(--purple); font-weight: 700; font-size: 13.5px;
+ cursor: pointer; transition: transform .15s ease, box-shadow .15s ease, background .2s ease;
+ }
+ .tour-btn:hover{ transform: translateY(-2px); box-shadow: 0 6px 16px rgba(90,63,140,.18); background: #FAF7FD; }
+
+ #tourOverlay{
+ position: fixed; inset: 0; z-index: 1800;
+ display: none;
+ }
+ #tourOverlay.active{ display: block; }
+ .tour-dim{
+ position: absolute; inset: 0;
+ background: rgba(20,17,10,0.55);
+ transition: background .25s ease;
+ }
+ .tour-spotlight{
+ position: absolute;
+ border-radius: 16px;
+ box-shadow: 0 0 0 6000px rgba(20,17,10,0.55);
+ transition: top .45s cubic-bezier(.22,.9,.3,1), left .45s cubic-bezier(.22,.9,.3,1),
+ width .45s cubic-bezier(.22,.9,.3,1), height .45s cubic-bezier(.22,.9,.3,1);
+ pointer-events: none;
+ border: 3px solid var(--purple-light);
+ }
+ .tour-card{
+ position: fixed;
+ left: 50%;
+ bottom: 28px;
+ transform: translateX(-50%);
+ z-index: 1810;
+ background: #fff;
+ border-radius: 16px;
+ padding: 22px 26px;
+ max-width: 460px;
+ width: 90vw;
+ box-shadow: 0 14px 40px rgba(0,0,0,0.30);
+ border: 2px solid var(--purple-light);
+ animation: fadeUp .35s ease both;
+ }
+ .tour-card .tour-step-label{
+ font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px;
+ color: var(--purple); margin-bottom: 6px;
+ }
+ .tour-card .tour-title{ font-size: 16.5px; font-weight: 800; color: var(--ink); margin-bottom: 6px; }
+ .tour-card .tour-desc{ font-size: 13.5px; color: var(--grey-dark); line-height: 1.55; margin-bottom: 16px; }
+ .tour-card .tour-controls{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+ .tour-dots{ display: flex; gap: 6px; }
+ .tour-dots span{ width: 7px; height: 7px; border-radius: 50%; background: var(--grey-light); transition: background .2s, transform .2s; }
+ .tour-dots span.active{ background: var(--purple); transform: scale(1.3); }
+ .tour-nav-btns{ display: flex; gap: 8px; }
+ .tour-nav-btn{
+ border: none; border-radius: 8px; padding: 9px 16px;
+ font-size: 13px; font-weight: 700; cursor: pointer;
+ }
+ .tour-nav-btn.tour-next{ background: var(--purple); color: #fff; }
+ .tour-nav-btn.tour-next:hover{ background: var(--green-dark); }
+ .tour-nav-btn.tour-prev{ background: var(--grey-light); color: var(--ink); }
+ .tour-nav-btn.tour-exit{ background: none; color: var(--grey-dark); text-decoration: underline; padding: 9px 6px; }
+ @media (max-width: 760px){
+ .tour-card{ padding: 18px 18px; bottom: 14px; }
+ .tour-spotlight{ display: none; } /* avoid layout jumpiness on small screens */
+ .tour-dim{ background: rgba(20,17,10,0.68); }
+ }
+
+ /* ===================================================
+ PRINT LAYOUT — judge/teacher friendly PDF export
+ =================================================== */
+ @media print {
+ @page { margin: 14mm 12mm; }
+
+ header.topbar, .lang-switch, .tour-trigger-row, .tour-btn,
+ .calc-btn, .report-btn, .export-btn, .cgi-calc-btn,
+ .ai-present-trigger, #presentOverlay, #tourOverlay, #toastHost,
+ .skip-link, .export-card, .report-cta { display: none !important; }
+
+ html, body { background: #fff !important; }
+ .wrap { max-width: 100%; padding: 0; }
+
+ * { animation: none !important; transition: none !important; }
+
+ .panel, .cgi-card, .result-card, .detector-card, .compare-card,
+ .scheme-item, .season-card, .sdg-card, .eco-impact-card,
+ .eco-score-card, .reco-card {
+ box-shadow: none !important;
+ border: 1px solid #ccc !important;
+ transform: none !important;
+ }
+
+ .section, .cgi-card, .eco-score-wrap, .eco-impact-grid,
+ .ai-grid-2, .ai-timeline-card { break-inside: avoid; }
+
+ .section-title, .cgi-card-title, .ai-section-header,
+ .eco-section-header, .cgi-section-header { break-after: avoid; }
+
+ .cgi-section-header, .eco-section-header, .ai-section-header {
+ background: #fff !important;
+ border: 1px solid #ccc !important;
+ }
+
+ /* Force readable ink on print regardless of screen accent colors */
+ body { color: #111 !important; }
+ .cgi-card-title, .section-title, .eco-card-headline,
+ .result-card .value, .ai-score-verdict { color: #111 !important; -webkit-print-color-adjust: exact; }
+
+ a { color: inherit !important; text-decoration: none !important; }
+
+ footer { border-top: 1px solid #ccc; }
+ }
+
+ @media (max-width: 760px) {
+ .scheme-grid, .cgi-calc-results, .sdg-grid { grid-template-columns: 1fr; }
+ .export-card { flex-direction: column; }
+ .cgi-card { padding: 20px 18px; }
+ .proj-chart-svg { height: 160px; }
+ .cgi-two-col { grid-template-columns: 1fr !important; }
+ .ai-grid-2 { grid-template-columns: 1fr; }
+ .ai-score-card { flex-direction: column; text-align: center; }
+ .ai-risk-badge-row { justify-content: center; }
+ }
+
+ /* ===================================================
+ EXPANDED MOBILE RESPONSIVENESS
+ Tightened breakpoints + small-screen specific fixes
+ across sections that previously only had a single
+ 760px rule.
+ =================================================== */
+ @media (max-width: 600px) {
+ .wrap{ padding: 0 14px 56px; }
+ .topbar-title{ font-size: 16.5px; }
+ .topbar-inner{ gap: 8px; }
+ .section-title{ font-size: 16px; }
+ .panel{ padding: 20px; }
+ .result-card .value{ font-size: 24px; }
+ .ai-achieve-grid{ grid-template-columns: 1fr 1fr; gap: 10px; }
+ .ai-achieve-badge{ padding: 14px 8px; }
+ .ai-gauge-wrap{ width: 140px; height: 140px; }
+ .ai-gauge-wrap svg{ width: 140px; height: 140px; }
+ .gauge-num{ font-size: 30px; }
+ .eco-score-card{ padding: 24px 18px; }
+ .eco-final-message .quote-text{ font-size: 15.5px; }
+ .cgi-lb-right{ min-width: 92px; }
+ .scheme-item{ padding: 14px 14px; }
+ .export-card{ padding: 24px 20px; }
+ .ai-timeline-dot{ width: 38px; height: 38px; font-size: 16px; }
+ .present-hero .ph-num{ font-size: 46px; }
+ .tour-card{ max-width: 92vw; }
+ }
+ @media (max-width: 420px) {
+ .lang-switch button{ padding: 5px 9px; font-size: 11.5px; }
+ .user-badge{ padding: 6px 12px; font-size: 12.5px; }
+ .calc-btn, .report-btn{ font-size: 14.5px; padding: 13px; }
+ .ai-achieve-grid{ grid-template-columns: 1fr 1fr; }
+ }
+ /* Respect small-height landscape too, so the tour card never overlaps content unreadably */
+ @media (max-height: 480px) and (orientation: landscape) {
+ .tour-card{ bottom: 8px; padding: 14px 16px; }
+ .tour-card .tour-desc{ display: none; }
+ }
+</style>
+</head>
+<body>
+
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<header class="topbar">
+ <div class="topbar-inner">
+ <div class="topbar-title"><svg class="icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5s6.5 7.2 6.5 11.8a6.5 6.5 0 0 1-13 0C5.5 9.7 12 2.5 12 2.5z"/></svg> <span data-en="Rainwater Harvesting Dashboard" data-rj="वरसाती पाणी संग्रहण डैशबोर्ड">Rainwater Harvesting Dashboard</span></div>
+ <div style="display:flex; align-items:center; gap:12px;">
+ <div class="lang-switch" role="group" aria-label="Language selection">
+ <button id="btn-en" class="active" onclick="setLang('en')" aria-pressed="true">English</button>
+ <button id="btn-rj" onclick="setLang('rj')" aria-pressed="false">राजस्थानी</button>
+ </div>
+ <div class="user-badge"> <span data-en="Welcome, Harish" data-rj="स्वागत है, हरीश">Welcome, Harish</span></div>
+ </div>
+ </div>
+</header>
+
+<div id="toastHost" aria-live="polite" aria-atomic="true"></div>
+
+<div class="wrap" id="main-content">
+
+ <!-- INPUT PANEL -->
+ <div class="section" id="input-section">
+ <div class="section-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="1.8"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="1.8"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="1.8"/></svg> <span data-en="Site Input Parameters" data-rj="साइट इनपुट पैरामीटर">Site Input Parameters</span></div>
+ <div class="section-sub" data-en="Enter your site details to calculate harvesting potential" data-rj="संग्रहण क्षमता काढ़ण वास्ते अपणी साइट री जानकारी भरो">Enter your site details to calculate harvesting potential</div>
+
+ <div class="tour-trigger-row">
+ <button class="tour-btn" onclick="startTour()" type="button">
+ <span data-en="Guided Walkthrough for Judges" data-rj="जजों वास्ते गाइडेड टूर">Guided Walkthrough for Judges</span>
+ </button>
+ </div>
+
+ <div class="panel">
+ <form id="calcForm" novalidate onsubmit="event.preventDefault(); calculate();">
+ <div class="form-grid">
+ <div class="field">
+ <label for="roofArea" data-en="Roof Area (sq ft)" data-rj="छत क्षेत्रफळ (वर्ग फुट)">Roof Area (sq ft)</label>
+ <input type="number" id="roofArea" placeholder="e.g. 1200" data-ph-en="e.g. 1200" data-ph-rj="जैसे 1200" min="0" inputmode="decimal"
+ aria-describedby="roofArea-error" aria-invalid="false" />
+ <div class="field-error" id="roofArea-error" role="alert"></div>
+ </div>
+ <div class="field">
+ <label for="rainfall" data-en="Annual Rainfall (mm)" data-rj="सालाना वरसाद (mm)">Annual Rainfall (mm)</label>
+ <input type="number" id="rainfall" placeholder="e.g. 650" data-ph-en="e.g. 650" data-ph-rj="जैसे 650" min="0" inputmode="decimal"
+ aria-describedby="rainfall-error" aria-invalid="false" />
+ <div class="field-error" id="rainfall-error" role="alert"></div>
+ </div>
+ <div class="field">
+ <label for="efficiency" data-en="System Efficiency (%)" data-rj="सिस्टम दक्षता (%)">System Efficiency (%)</label>
+ <input type="number" id="efficiency" placeholder="e.g. 75" data-ph-en="e.g. 75" data-ph-rj="जैसे 75" min="0" max="100" inputmode="decimal"
+ aria-describedby="efficiency-error" aria-invalid="false" />
+ <div class="field-error" id="efficiency-error" role="alert"></div>
+ </div>
+ <div class="field">
+ <label for="areaType" data-en="Area Type" data-rj="क्षेत्र प्रकार">Area Type</label>
+ <select id="areaType">
+ <option value="home" data-en="Home" data-rj="घर">Home</option>
+ <option value="school" data-en="School" data-rj="स्कूल">School</option>
+ <option value="farm" data-en="Farm" data-rj="खेत">Farm</option>
+ </select>
+ </div>
+ </div>
+ <button type="submit" class="calc-btn" id="calcBtn">
+ <span id="calcBtnLabel" data-en="Calculate Water Potential" data-rj="पाणी क्षमता काढ़ो">Calculate Water Potential</span>
+ </button>
+ </form>
+ </div>
+ </div>
+
+ <div id="results-section" aria-live="polite">
+
+ <!-- CORE RESULTS -->
+ <div class="section">
+ <div class="section-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="4" width="13" height="17" rx="1.5"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><polyline points="8.5,12.5 10.5,14.5 15,9.5"/></svg> <span data-en="Assessment Results" data-rj="आंकलण परिणाम">Assessment Results</span></div>
+ <div class="result-grid">
+ <div class="result-card">
+ <div class="label" data-en="Total Rainwater Harvested" data-rj="कुल वरसाती पाणी संग्रहित">Total Rainwater Harvested</div>
+ <div class="value"><span id="harvestedValue">0</span><small> L/yr</small></div>
+ </div>
+ <div class="result-card">
+ <div class="label" data-en="Water Saving Score" data-rj="पाणी बचत अंक">Water Saving Score</div>
+ <div class="value"><span id="scoreValue">0</span><small>/100</small></div>
+ </div>
+ <div class="result-card">
+ <div class="label" data-en="Status" data-rj="स्थिति">Status</div>
+ <div id="statusBadge" class="badge good">—</div>
+ </div>
+ </div>
+ </div>
+
+ <!-- LOSS DETECTOR -->
+ <div class="section">
+ <div class="section-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5s6.5 7.2 6.5 11.8a6.5 6.5 0 0 1-13 0C5.5 9.7 12 2.5 12 2.5z"/></svg> <span data-en="Water Saving Opportunity Detector" data-rj="पाणी बचत मौका पिछाणणवाळो">Water Saving Opportunity Detector</span></div>
+ <div class="section-sub" data-en="Annual rainwater harvesting potential for your site" data-rj="तुहारी साइट वास्ते सालाना वरसाती पाणी संग्रहण क्षमता">Annual rainwater harvesting potential for your site</div>
+
+ <div class="detector-grid">
+ <div class="detector-card collectable">
+ <div class="detector-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5s6.5 7.2 6.5 11.8a6.5 6.5 0 0 1-13 0C5.5 9.7 12 2.5 12 2.5z"/></svg></div>
+ <div class="detector-label" data-en="Total Water You Can Collect" data-rj="कुल पाणी जो तूं एकठो करी सको">Total Water You Can Collect</div>
+ <div class="detector-value"><span id="detectorCollectable">0</span> <small>L / yr</small></div>
+ </div>
+ <div class="detector-card wasted">
+ <div class="detector-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5s6.5 7.2 6.5 11.8a6.5 6.5 0 0 1-13 0C5.5 9.7 12 2.5 12 2.5z"/><line x1="4" y1="20" x2="20" y2="4"/></svg></div>
+ <div class="detector-label" data-en="Estimated Water Currently Wasted" data-rj="अबार जतरो पाणी गुमी रियो है">Estimated Water Currently Wasted</div>
+ <div class="detector-value"><span id="detectorWasted">0</span> <small>L / yr</small></div>
+ </div>
+ </div>
+
+ <div id="lossPanel" class="loss-panel">
+ <div class="loss-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"/><line x1="12" y1="9" x2="12" y2="14"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></svg></div>
+ <div class="loss-text">
+ <strong id="lossHeadline">—</strong>
+ <span id="lossSubtext" data-en="Estimated rainwater currently going uncollected, based on your roof area and local rainfall" data-rj="तुहारी छत अैं इलाके री वरसाद रे आधार पर, अबार जतरो पाणी एकठो नहीं हो रियो उणरो अनुमान">Estimated rainwater currently going uncollected, based on your roof area and local rainfall</span>
+ <span class="impact-statement" id="impactStatement"></span>
+ </div>
+ </div>
+ </div>
+
+ <!-- BEFORE/AFTER -->
+ <div class="section">
+ <div class="section-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h13l-3.5-3.5M19 17H6l3.5 3.5"/></svg> <span data-en="Before vs After Simulation" data-rj="पहलां अैं पाछै री तुलना">Before vs After Simulation</span></div>
+ <div class="compare-grid">
+ <div class="compare-card before" id="beforeCard">
+ <div class="drop-emoji"><svg class="icon-svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="12" height="15" rx="2"/></svg></div>
+ <h4> <span data-en="Before — No Harvesting System" data-rj="पहलां — कोई संग्रहण सिस्टम नहीं">Before — No Harvesting System</span></h4>
+ <div class="big-num"><span id="beforeValue">0</span> L <span data-en="lost" data-rj="गुमायो" style="font-size:14px;font-weight:600;">lost</span></div>
+ <div class="bar-track"><div class="bar-fill" id="beforeBar" style="width:0%"></div></div>
+ <div class="pct-label"><span id="beforePct">0</span>% <span data-en="of rainfall wasted" data-rj="वरसाद रो हिस्सो गुमायो">of rainfall wasted</span></div>
+ </div>
+ <div class="compare-card after" id="afterCard">
+ <div class="drop-emoji"><svg class="icon-svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="12" height="15" rx="2"/><line x1="6" y1="11" x2="18" y2="11"/><rect x="6" y="11" width="12" height="9" rx="0" fill="currentColor" stroke="none" opacity="0.18"/></svg></div>
+ <h4> <span data-en="After — With Harvesting System" data-rj="पाछै — संग्रहण सिस्टम सागै">After — With Harvesting System</span></h4>
+ <div class="big-num"><span id="afterValue">0</span> L <span data-en="saved" data-rj="बचायो" style="font-size:14px;font-weight:600;">saved</span></div>
+ <div class="bar-track"><div class="bar-fill" id="afterBar" style="width:0%"></div></div>
+ <div class="pct-label"><span id="afterPct">0</span>% <span data-en="of rainfall captured" data-rj="वरसाद रो हिस्सो संग्रहित">of rainfall captured</span></div>
+ </div>
+ </div>
+ <div style="text-align:center; margin-top:14px; font-size:13.5px; color:var(--grey-dark);" data-en="The gap between these two bars is the water your harvesting system rescues every year" data-rj="इन दोनूं बार रे बीचाळो फरक ही वो पाणी है जो तुहारो सिस्टम हर साल बचावै है">The gap between these two bars is the water your harvesting system rescues every year</div>
+ </div>
+
+ <!-- AI RECOMMENDATIONS -->
+ <div class="section">
+ <div class="section-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18.5h6M9.5 21h5M12 3a6 6 0 0 0-3.2 11.1c.5.3.7.8.7 1.4v.5h5v-.5c0-.6.3-1.1.7-1.4A6 6 0 0 0 12 3Z"/></svg> <span data-en="AI Recommendation Engine" data-rj="AI सलाह यंत्र">AI Recommendation Engine</span></div>
+ <div class="section-sub" data-en="Smart, eco-friendly suggestions generated from your roof area, rainfall, and system efficiency" data-rj="तुहारी छत क्षेत्रफळ, वरसाद अैं सिस्टम दक्षता रे आधार पर समझदार, पर्यावरण-अनुकूल सलाह">Smart, eco-friendly suggestions generated from your roof area, rainfall, and system efficiency</div>
+ <div class="panel">
+ <div class="reco-list" id="recoList"></div>
+ </div>
+ </div>
+
+ <!-- SEASONAL -->
+ <div class="section">
+ <div class="section-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="15" rx="1.5"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="8" y1="3.5" x2="8" y2="7"/><line x1="16" y1="3.5" x2="16" y2="7"/></svg> <span data-en="Seasonal Water Prediction" data-rj="मौसमी पाणी अनुमान">Seasonal Water Prediction</span></div>
+ <div class="season-grid">
+ <div class="season-card">
+ <div class="season-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8 6 18M18 6l1.8-1.8"/></svg></div>
+ <div class="season-name" data-en="Summer" data-rj="गरमी">Summer</div>
+ <div class="season-val"><span id="summerVal">0</span> L</div>
+ </div>
+ <div class="season-card">
+ <div class="season-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.5a4.2 4.2 0 0 1 .3-8.4 5.4 5.4 0 0 1 10.4 1.7 3.6 3.6 0 0 1-.9 7.1H7Z"/><path d="M9 19.5 8 21.5M13 19.5 12 21.5M17 19.5 16 21.5"/></svg></div>
+ <div class="season-name" data-en="Monsoon" data-rj="वरसात">Monsoon</div>
+ <div class="season-val"><span id="monsoonVal">0</span> L</div>
+ </div>
+ <div class="season-card">
+ <div class="season-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v19M4.5 7.2l15 9.6M19.5 7.2l-15 9.6"/></svg></div>
+ <div class="season-name" data-en="Winter" data-rj="जाड़ो">Winter</div>
+ <div class="season-val"><span id="winterVal">0</span> L</div>
+ </div>
+ </div>
+ </div>
+
+ <!-- ENVIRONMENTAL IMPACT SECTION -->
+ <div id="eco-impact-section" class="section">
+
+ <!-- Section Header -->
+ <div class="eco-section-header">
+ <div class="eco-main-title" data-en="Environmental Impact Insights" data-rj="पर्यावरण प्रभाव जानकारी">Environmental Impact Insights</div>
+ <div class="eco-subtitle" data-en='&quot;Understand the real-world impact of your rainwater harvesting system.&quot;' data-rj='&quot;तुहारे वरसाती पाणी संग्रहण सिस्टम री असली दुनिया रो प्रभाव समझो।&quot;'>"Understand the real-world impact of your rainwater harvesting system."</div>
+ <div class="eco-section-divider"></div>
+ </div>
+
+ <!-- 1. ECO IMPACT SCORE -->
+ <div class="eco-score-wrap" style="margin-top:30px;">
+ <div class="eco-score-card">
+ <div class="eco-score-ring">
+ <svg width="150" height="150" viewBox="0 0 150 150" aria-hidden="true" focusable="false">
+ <circle cx="75" cy="75" r="60" fill="none" stroke="#E5E1D6" stroke-width="12"/>
+ <circle id="ecoRingFill" cx="75" cy="75" r="60" fill="none"
+ stroke="#3F8C4A" stroke-width="12"
+ stroke-dasharray="377" stroke-dashoffset="377"
+ stroke-linecap="round"
+ style="transition: stroke-dashoffset 1.4s cubic-bezier(.22,.9,.3,1)"/>
+ </svg>
+ <div class="eco-score-ring-text">
+ <div class="ring-num" id="ecoScoreNum">0</div>
+ <div class="ring-denom">/100</div>
+ </div>
+ </div>
+ <div class="eco-score-label" data-en="Eco Impact Score" data-rj="ईको प्रभाव स्कोर">Eco Impact Score</div>
+ <div class="eco-score-status" id="ecoScoreStatus">Excellent Water Conservation</div>
+ </div>
+ </div>
+
+ <!-- 2–4. THREE IMPACT CARDS -->
+ <div class="eco-impact-grid">
+
+ <!-- Household -->
+ <div class="eco-impact-card household">
+ <div class="eco-card-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9.5h12V10"/><path d="M10 19.5v-6h4v6"/></svg></div>
+ <div>
+ <div class="eco-card-tag" data-en="Household Impact" data-rj="घरेलू प्रभाव">Household Impact</div>
+ <div class="eco-card-headline">
+ <span class="highlight-num" id="householdMonths">—</span>
+ <span data-en="months for one family" data-rj="महीने एक परिवार वास्ते">months for one family</span>
+ </div>
+ </div>
+ <div class="eco-card-body" id="householdStatement">
+ This system can supply enough water to support a family of 4–5 members through an extended period — reducing their dependence on municipal or groundwater sources.
+ </div>
+ <div style="font-size:28px; text-align:center; opacity:.7; margin-top:4px;"></div>
+ </div>
+
+ <!-- Trees -->
+ <div class="eco-impact-card trees">
+ <div class="eco-card-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 7.5 10h2.4L6 16h3.6L7 21h10l-2.6-5H18l-3.9-6h2.4L12 3z"/><line x1="12" y1="21" x2="12" y2="17.5"/></svg></div>
+ <div>
+ <div class="eco-card-tag">Equivalent Environmental Benefit</div>
+ <div class="eco-card-headline">
+ <span class="highlight-num" id="treeEquiv">—</span>
+ <span data-en="trees supported annually" data-rj="पेड़ां नै सालाना पाणी">trees supported annually</span>
+ </div>
+ </div>
+ <div class="eco-card-body" id="treeStatement">
+ Saving this volume of water provides the environmental hydration benefit equivalent to sustaining fully grown trees for an entire year.
+ </div>
+ <div style="font-size:28px; text-align:center; opacity:.7; margin-top:4px;"></div>
+ </div>
+
+ <!-- Carbon -->
+ <div class="eco-impact-card carbon" style="grid-column: 1 / -1;">
+ <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+ <div style="flex:1; min-width:200px;">
+ <div class="eco-card-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4.5C12 4.5 6 9.5 6 16.5c0 1 .1 2 .3 2.8C13 19 18.5 13.5 19 4.5Z"/><path d="M6 19 19 5"/></svg></div>
+ <div style="margin-top:8px;">
+ <div class="eco-card-tag" data-en="Carbon Reduction" data-rj="कार्बन कटौती">Carbon Reduction</div>
+ <div class="eco-card-headline">
+ <span class="highlight-num" id="carbonKg">—</span>
+ <span data-en="kg CO₂ reduced annually" data-rj="kg CO₂ सालाना घटायो">kg CO₂ reduced annually</span>
+ </div>
+ </div>
+ <div class="eco-card-body" data-en="Every liter of rainwater harvested avoids the energy-intensive process of pumping, treating, and distributing equivalent municipal water — directly cutting your carbon footprint." data-rj="हार्वेस्ट किया हर लीटर वरसाती पाणी, समकक्ष नगरपालिका पाणी री पंपिंग, उपचार अैं वितरण री ऊर्जा-गहन प्रक्रिया सूं बचावैला — सीधा तुहारो कार्बन फुटप्रिंट घटाता है।">
+ Every liter of rainwater harvested avoids the energy-intensive process of pumping, treating, and distributing equivalent municipal water — directly cutting your carbon footprint.
+ </div>
+ </div>
+ <div style="flex:1; min-width:180px; display:flex; flex-direction:column; justify-content:center; gap:8px;">
+ <div style="font-size:13px; font-weight:600; color:var(--grey-dark);" data-en="Carbon reduction progress" data-rj="कार्बन कटौती प्रगति">Carbon reduction progress</div>
+ <div class="carbon-bar-track">
+ <div class="carbon-bar-fill" id="carbonBar"></div>
+ </div>
+ <div style="font-size:12.5px; color:var(--green-dark); font-weight:700;" id="carbonPctLabel">—</div>
+ <div style="font-size:12px; color:var(--grey-dark);" data-en="vs. national avg household carbon from water use" data-rj="राष्ट्रीय औसत घरेलू पाणी कार्बन री तुलना में">vs. national avg household carbon from water use</div>
+ </div>
+ </div>
+ </div>
+
+ <!-- Community -->
+ <div class="eco-impact-card community">
+ <div class="eco-card-tag" style="font-size:12px;" data-en="Community Impact" data-rj="सामुदायिक प्रभाव">Community Impact</div>
+ <div class="community-inner">
+ <div class="community-left">
+ <div class="eco-card-headline" style="font-size:16px; margin-bottom:6px;">
+ <span data-en="If" data-rj="अगर">If</span> <strong style="color:var(--green-dark); font-size:20px;"><span data-en="100 households" data-rj="100 घर">100 households</span></strong> <span data-en="adopt this system:" data-rj="ये सिस्टम अपणावैं:">adopt this system:</span>
+ </div>
+ <div class="eco-card-body" data-en="A single neighbourhood can transform its water security and become a model for sustainable urban water management." data-rj="एक अकेलो मोहल्लो अपणी पाणी सुरक्षा बदल सकैला अैं टिकावू शहरी पाणी प्रबंधन रो आदर्श बन सकैला।">
+ A single neighbourhood can transform its water security and become a model for sustainable urban water management.
+ </div>
+ <div class="community-stat-row">
+ <div class="community-stat-num" id="communityLiters">—</div>
+ <div class="community-stat-label" data-en="liters of rainwater saved annually by the community" data-rj="समुदाय द्वारा सालाना बचायो वरसाती पाणी (लीटर)">liters of rainwater saved annually by the community</div>
+ </div>
+ <div class="community-stat-row" style="margin-top:8px;">
+ <div class="community-stat-num" id="communityFamilies">—</div>
+ <div class="community-stat-label" data-en="additional families could be water-secure year-round" data-rj="अतिरिक्त परिवार साल भर पाणी-सुरक्षित हो सकैं हैं">additional families could be water-secure year-round</div>
+ </div>
+ </div>
+ <div class="community-illustration"><svg class="icon-svg" width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="8" r="2.6"/><path d="M3 18c0-2.6 2-4.6 4.5-4.6S12 15.4 12 18"/><circle cx="16.5" cy="8" r="2.6"/><path d="M12.5 18c0-2.6 2-4.6 4.5-4.6S21.5 15.4 21.5 18"/></svg></div>
+ </div>
+ </div>
+
+ </div>
+
+ <!-- SUSTAINABILITY BADGES -->
+ <div class="eco-badges-section">
+ <div class="eco-badges-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="5"/><path d="M9 12.8 7.5 21l4.5-2.5L16.5 21l-1.5-8.2"/></svg> <span data-en="Sustainability Badges Earned" data-rj="टिकावूपण बैज मिले">Sustainability Badges Earned</span></div>
+ <div class="eco-badges-row">
+ <div class="eco-badge-pill b1"><span class="bp-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5s6.5 7.2 6.5 11.8a6.5 6.5 0 0 1-13 0C5.5 9.7 12 2.5 12 2.5z"/></svg></span> <span data-en="Water Saver" data-rj="पाणी बचावणवाळो">Water Saver</span></div>
+ <div class="eco-badge-pill b2"><span class="bp-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4.5C12 4.5 6 9.5 6 16.5c0 1 .1 2 .3 2.8C13 19 18.5 13.5 19 4.5Z"/><path d="M6 19 19 5"/></svg></span> <span data-en="Eco Friendly" data-rj="ईको मित्र">Eco Friendly</span></div>
+ <div class="eco-badge-pill b3"><span class="bp-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 5.8v5.4C4.5 16.4 7.7 19.8 12 21c4.3-1.2 7.5-4.6 7.5-9.8V5.8L12 3z"/></svg></span> <span data-en="Rain Guardian" data-rj="वरसाद रखवाळो">Rain Guardian</span></div>
+ <div class="eco-badge-pill b4"><span class="bp-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="5"/><path d="M9 12.8 7.5 21l4.5-2.5L16.5 21l-1.5-8.2"/></svg></span> <span data-en="Sustainability Champion" data-rj="टिकावूपण चैंपियन">Sustainability Champion</span></div>
+ </div>
+ </div>
+
+ <!-- FINAL IMPACT MESSAGE -->
+ <div class="eco-final-message">
+ <span class="quote-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8.5c-2 1-3 2.7-3 4.8 0 2.1 1.5 3.7 3.4 3.7 1.7 0 3-1.3 3-3 0-1.5-1-2.7-2.5-3 .2-1.4 1.1-2.4 2.4-3.1L7 8.5z"/><path d="M16 8.5c-2 1-3 2.7-3 4.8 0 2.1 1.5 3.7 3.4 3.7 1.7 0 3-1.3 3-3 0-1.5-1-2.7-2.5-3 .2-1.4 1.1-2.4 2.4-3.1L16 8.5z"/></svg></span>
+ <div class="quote-text"><span data-en="&quot;Every drop saved today protects future generations.&quot;" data-rj="&quot;आज बचायो हर एक बूंद, आणवाळी पीढ़ियां नै सुरक्षित करैला।&quot;">"Every drop saved today<br>protects future generations."</span></div>
+ <div class="quote-sub">Your harvesting system is more than infrastructure — it is a promise to the planet.</div>
+ <div class="eco-icons-row"><svg class="icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4.5C12 4.5 6 9.5 6 16.5c0 1 .1 2 .3 2.8C13 19 18.5 13.5 19 4.5Z"/></svg><svg class="icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4.5C12 4.5 6 9.5 6 16.5c0 1 .1 2 .3 2.8C13 19 18.5 13.5 19 4.5Z"/></svg><svg class="icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4.5C12 4.5 6 9.5 6 16.5c0 1 .1 2 .3 2.8C13 19 18.5 13.5 19 4.5Z"/></svg></div>
+ </div>
+
+ </div>
+ <!-- END ENVIRONMENTAL IMPACT SECTION -->
+
+
+ <!-- =====================================================
+ COMMUNITY & GOVERNMENT INSIGHTS SECTION
+ ===================================================== -->
+ <div id="cgi-section">
+
+ <!-- Section Header -->
+ <div class="cgi-section-header cgi-fade">
+ <div class="cgi-main-title" data-en="Community &amp; Government Insights" data-rj="सामुदायिक अैं सरकारी जानकारी">Community &amp; Government Insights</div>
+ <div class="cgi-subtitle" data-en='&quot;See how your effort fits into a larger picture — and what support is available to you.&quot;' data-rj='&quot;देखो के तुहारो प्रयास एक बड़ी तस्वीर में कठे बैठै है — अैं तुहारे वास्ते कौनसो सहयोग उपलब्ध है।&quot;'>"See how your effort fits into a larger picture — and what support is available to you."</div>
+ <div class="cgi-divider"></div>
+ </div>
+
+ <!-- ROW 1: Leaderboard + Scheme Eligibility -->
+ <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:26px;" class="cgi-two-col">
+
+ <!-- 1. LEADERBOARD -->
+ <div class="cgi-card cgi-fade">
+ <div class="cgi-card-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="11"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="19" y1="20" x2="19" y2="14"/><line x1="3" y1="20" x2="21" y2="20"/></svg> <span data-en="Water Savings Leaderboard" data-rj="पाणी बचत लीडरबोर्ड">Water Savings Leaderboard</span></div>
+ <div class="cgi-card-sub" data-en="Top communities by annual water saved. Your system is ranked live." data-rj="सालाना पाणी बचत रे हिसाब सूं शीर्ष समुदाय। तुहारो सिस्टम लाइव रैंक होवैला।">Top communities by annual water saved. <em>Your system</em> is ranked live.</div>
+ <div id="cgi-lb-list"></div>
+ </div>
+
+ <!-- 2. GOVERNMENT SCHEME ELIGIBILITY -->
+ <div class="cgi-card cgi-fade">
+ <div class="cgi-card-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1"/><line x1="9" y1="8" x2="9" y2="8.01"/><line x1="15" y1="8" x2="15" y2="8.01"/><line x1="9" y1="12" x2="9" y2="12.01"/><line x1="15" y1="12" x2="15" y2="12.01"/><line x1="9" y1="16" x2="15" y2="16"/></svg> <span data-en="Government Scheme Eligibility" data-rj="सरकारी योजना पात्रता">Government Scheme Eligibility</span></div>
+ <div class="cgi-card-sub" data-en="Based on your roof area and annual harvest volume." data-rj="तुहारे छत क्षेत्रफळ अैं सालाना हार्वेस्ट मात्रा रे आधार पर।">Based on your roof area and annual harvest volume.</div>
+ <div class="scheme-grid" id="cgi-scheme-grid"></div>
+ <div class="scheme-total" id="cgi-scheme-total" style="display:none;">
+ <span class="st-label" data-en="Estimated Total Incentive" data-rj="अनुमानित कुल प्रोत्साहन">Estimated Total Incentive</span>
+ <span class="st-amount" id="cgi-total-incentive">₹0</span>
+ </div>
+ </div>
+
+ </div>
+
+ <!-- ROW 2: Community Calculator + SDG Goals -->
+ <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px;" class="cgi-two-col">
+
+ <!-- 3. COMMUNITY IMPACT CALCULATOR -->
+ <div class="cgi-card cgi-fade">
+ <div class="cgi-card-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="3"/><path d="M3 19c0-3 2.5-5 5.5-5S14 16 14 19"/><circle cx="16.5" cy="9" r="2.4"/><path d="M15 19c0-2.3 1.6-4.1 3.8-4.6"/></svg> <span data-en="Community Impact Calculator" data-rj="सामुदायिक प्रभाव कैलकुलेटर">Community Impact Calculator</span></div>
+ <div class="cgi-card-sub" data-en="Enter the number of houses in your colony to estimate collective impact." data-rj="सामूहिक प्रभाव रो अनुमान लगावण वास्ते अपणी कॉलोनी में घरां री संख्या भरो।">Enter the number of houses in your colony to estimate collective impact.</div>
+ <div class="cgi-calc-row">
+ <div class="cgi-calc-input-wrap">
+ <label for="cgi-houses" data-en="Number of Houses" data-rj="घरां री गिणती">Number of Houses</label>
+ <input type="number" id="cgi-houses" class="cgi-calc-input" placeholder="e.g. 50" data-ph-en="e.g. 50" data-ph-rj="जैसे 50" min="1"
+ inputmode="numeric" aria-describedby="cgi-houses-error" aria-invalid="false" />
+ <div class="field-error" id="cgi-houses-error" role="alert"></div>
+ </div>
+ <button class="cgi-calc-btn" onclick="cgiCalcCommunity()" data-en="Calculate" data-rj="हिसाब करो">Calculate</button>
+ </div>
+ <div class="cgi-calc-results" id="cgi-calc-results">
+ <div class="cgi-cr-card">
+ <div class="cr-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5s6.5 7.2 6.5 11.8a6.5 6.5 0 0 1-13 0C5.5 9.7 12 2.5 12 2.5z"/></svg></div>
+ <div class="cr-num" id="cgi-colony-liters">—</div>
+ <div class="cr-label" data-en="Litres / Year (Colony)" data-rj="लीटर / साल (कॉलोनी)">Litres / Year (Colony)</div>
+ </div>
+ <div class="cgi-cr-card">
+ <div class="cr-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="3"/><path d="M3 19c0-3 2.5-5 5.5-5S14 16 14 19"/><circle cx="16.5" cy="9" r="2.4"/><path d="M15 19c0-2.3 1.6-4.1 3.8-4.6"/></svg></div>
+ <div class="cr-num" id="cgi-families">—</div>
+ <div class="cr-label" data-en="Families Benefited" data-rj="परिवारों नै फायदो">Families Benefited</div>
+ </div>
+ <div class="cgi-cr-card">
+ <div class="cr-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4.5C12 4.5 6 9.5 6 16.5c0 1 .1 2 .3 2.8C13 19 18.5 13.5 19 4.5Z"/><path d="M6 19 19 5"/></svg></div>
+ <div class="cr-num" id="cgi-colony-co2">—</div>
+ <div class="cr-label" data-en="kg CO₂ Reduced" data-rj="kg CO₂ घटायो">kg CO₂ Reduced</div>
+ </div>
+ </div>
+ </div>
+
+ <!-- 4. SDG GOALS -->
+ <div class="cgi-card cgi-fade">
+ <div class="cgi-card-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.2 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.2-3.6-8.5S9.6 5.8 12 3.5z"/></svg> <span data-en="UN Sustainable Development Goals" data-rj="UN टिकावू विकास लक्ष्य">UN Sustainable Development Goals</span></div>
+ <div class="cgi-card-sub" data-en="Your system directly contributes to these global goals." data-rj="तुहारो सिस्टम सीधा इन वैश्विक लक्ष्यां में योगदान देवैला।">Your system directly contributes to these global goals.</div>
+ <div class="sdg-grid" id="cgi-sdg-grid">
+
+ <div class="sdg-card sdg6">
+ <div class="sdg-badge">6</div>
+ <div class="sdg-num">SDG 6</div>
+ <div class="sdg-name" data-en="Clean Water &amp; Sanitation" data-rj="स्वच्छ पाणी अैं स्वच्छता">Clean Water &amp; Sanitation</div>
+ <div class="sdg-desc" data-en="Ensures access to water and sanitation for all by reducing dependency on overexploited groundwater." data-rj="अत्यधिक दोहन किया गया भूजल पर निर्भरता घटाकर सभी वास्ते पाणी अैं स्वच्छता री पहुंच सुनिश्चित करैला।">Ensures access to water and sanitation for all by reducing dependency on overexploited groundwater.</div>
+ <div class="sdg-contrib" id="sdg6-contrib">Loading…</div>
+ </div>
+
+ <div class="sdg-card sdg11">
+ <div class="sdg-badge">11</div>
+ <div class="sdg-num">SDG 11</div>
+ <div class="sdg-name" data-en="Sustainable Cities" data-rj="टिकावू शहर">Sustainable Cities</div>
+ <div class="sdg-desc" data-en="Builds resilient urban infrastructure by decentralising water collection at the household level." data-rj="घरेलू स्तर पर पाणी एकत्रण विकेंद्रीकृत करकर मजबूत शहरी बुनियादी ढांचो बणावैला।">Builds resilient urban infrastructure by decentralising water collection at the household level.</div>
+ <div class="sdg-contrib" id="sdg11-contrib">Loading…</div>
+ </div>
+
+ <div class="sdg-card sdg13">
+ <div class="sdg-badge">13</div>
+ <div class="sdg-num">SDG 13</div>
+ <div class="sdg-name" data-en="Climate Action" data-rj="जलवायु कार्यवाही">Climate Action</div>
+ <div class="sdg-desc" data-en="Reduces carbon footprint by cutting energy-intensive municipal water treatment and distribution." data-rj="ऊर्जा-गहन नगर पालिका पाणी उपचार अैं वितरण नै घटाकर कार्बन फुटप्रिंट कम करैला।">Reduces carbon footprint by cutting energy-intensive municipal water treatment and distribution.</div>
+ <div class="sdg-contrib" id="sdg13-contrib">Loading…</div>
+ </div>
+
+ </div>
+ </div>
+
+ </div>
+
+ <!-- ROW 3: Future Projection (full width) -->
+ <div class="cgi-card cgi-fade" style="margin-top:18px;">
+ <div class="cgi-card-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3.5,18 9.5,11.5 14,15 20.5,7.5"/><polyline points="14.5,7.5 20.5,7.5 20.5,13"/></svg> <span data-en="5-Year Water Savings Projection" data-rj="5 साल री पाणी बचत अनुमान">5-Year Water Savings Projection</span></div>
+ <div class="cgi-card-sub" data-en="Estimated cumulative water saved as adoption and efficiency improve over time." data-rj="समय रे सागै अपनावण अैं दक्षता में सुधार होण पर अनुमानित संचयी पाणी बचत।">Estimated cumulative water saved as adoption and efficiency improve over time.</div>
+ <div class="proj-legend">
+ <span><span class="dot" style="background:var(--green-dark);"></span><span data-en="Harvested (L)" data-rj="एकठो किया (L)">Harvested (L)</span></span>
+ <span><span class="dot" style="background:#3B7FB0;"></span><span data-en="Potential (L)" data-rj="क्षमता (L)">Potential (L)</span></span>
+ </div>
+ <div class="proj-canvas-container">
+ <svg class="proj-chart-svg" id="projSvg" viewBox="0 0 700 220" preserveAspectRatio="none"></svg>
+ </div>
+ <div class="proj-year-labels" id="projYearLabels"></div>
+ <div class="proj-summary-row" id="projSummaryRow"></div>
+ </div>
+
+ <!-- ===================================================
+ AI INTELLIGENCE CENTER
+ =================================================== -->
+ <div id="ai-intel-section" style="margin-top:18px;">
+
+ <div class="ai-section-header cgi-fade">
+ <div class="ai-main-title" data-en="AI Intelligence Center" data-rj="AI बुद्धिमत्ता केंद्र">AI Intelligence Center</div>
+ <div class="ai-subtitle" data-en='&quot;Your assessment, read by an AI advisor — risk, strategy, and the road ahead.&quot;' data-rj='&quot;तुहारो आंकलण, एक AI सलाहकार द्वारा — जोखम, रणनीति, अैं आगे रो रास्तो।&quot;'>"Your assessment, read by an AI advisor — risk, strategy, and the road ahead."</div>
+ <div class="ai-divider"></div>
+ <div class="ai-engine-note"><span class="pulse-dot"></span> <span data-en="Live analysis generated from your input parameters" data-rj="तुहारे इनपुट पैरामीटर सूं जीवंत विश्लेषण बणो">Live analysis generated from your input parameters</span></div>
+ </div>
+
+ <!-- ROW A: AI Water Advisor + Risk Analysis -->
+ <div class="ai-grid-2">
+
+ <!-- 1. AI WATER ADVISOR -->
+ <div class="cgi-card ai-advisor-card cgi-fade">
+ <div class="cgi-card-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v11H9l-5 4v-4H4v-11z"/></svg> <span data-en="AI Water Advisor" data-rj="AI पाणी सलाहकार">AI Water Advisor</span></div>
+ <div class="cgi-card-sub" data-en="Three personalised moves, ranked by impact on your specific numbers." data-rj="तुहारे खास आंकड़ां पर प्रभाव रे हिसाब सूं क्रमबद्ध, तीन निजी कदम।">Three personalised moves, ranked by impact on your specific numbers.</div>
+ <div class="ai-advisor-list" id="ai-advisor-list"></div>
+ </div>
+
+ <!-- 2. RISK ANALYSIS CARD -->
+ <div class="cgi-card ai-risk-card cgi-fade">
+ <div class="cgi-card-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"/><line x1="12" y1="9" x2="12" y2="14"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></svg> <span data-en="Risk Analysis" data-rj="जोखम विश्लेषण">Risk Analysis</span></div>
+ <div class="cgi-card-sub" data-en="Checks your rainfall, efficiency, and storage against safe operating ranges." data-rj="तुहारे वरसाद, दक्षता, अैं भंडारण नै सुरक्षित परिचालन सीमाओं रे विरुद्ध जांचै।">Checks your rainfall, efficiency, and storage against safe operating ranges.</div>
+ <div class="ai-risk-badge-row">
+ <span id="ai-risk-badge" class="ai-risk-badge low" data-en="Low Risk" data-rj="ओछो जोखम">Low Risk</span>
+ <span id="ai-risk-score" style="font-size:12.5px; color:var(--grey-dark); font-weight:700;" data-en="Risk index: 0/100" data-rj="जोखम सूचकांक: 0/100">Risk index: 0/100</span>
+ </div>
+ <div class="ai-risk-meter-track"><div class="ai-risk-meter-fill low" id="ai-risk-meter" style="width:0%"></div></div>
+ <div class="ai-risk-factors" id="ai-risk-factors"></div>
+ </div>
+
+ </div>
+
+ <!-- 3. SMART RECOMMENDATIONS TIMELINE -->
+ <div class="cgi-card ai-timeline-card cgi-fade">
+ <div class="cgi-card-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="4" y1="12" x2="11" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/><circle cx="17" cy="16" r="4.2"/><path d="M17 14.3V16l1.3.9"/></svg> <span data-en="Smart Recommendations Timeline" data-rj="स्मार्ट सलाह समयरेखा">Smart Recommendations Timeline</span></div>
+ <div class="cgi-card-sub" data-en="What to do now, this season, and over the long run — staged by urgency." data-rj="अबार क्या करणो है, इण सीज़न में, अैं लंबे समय में — जरूरी क्रम में।">What to do now, this season, and over the long run — staged by urgency.</div>
+ <div class="ai-timeline" id="ai-timeline"></div>
+ </div>
+
+ <!-- 4. AI SUSTAINABILITY SCORE -->
+ <div class="cgi-card cgi-fade" style="margin-top:18px;">
+ <div class="cgi-card-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.5A8 8 0 1 1 20 14.5"/><line x1="12" y1="14.5" x2="15.2" y2="10"/><circle cx="12" cy="14.5" r="1" fill="currentColor" stroke="none"/></svg> <span data-en="AI Sustainability Score" data-rj="AI टिकावूपण स्कोर">AI Sustainability Score</span></div>
+ <div class="cgi-card-sub" data-en="A weighted blend of efficiency, capture rate, and rainfall reliability." data-rj="दक्षता, कैप्चर दर, अैं वरसाद भरोसेमंदता रो भारित मिश्रण।">A weighted blend of efficiency, capture rate, and rainfall reliability.</div>
+ <div class="ai-score-card">
+ <div class="ai-gauge-wrap">
+ <svg width="170" height="170" viewBox="0 0 170 170">
+ <circle cx="85" cy="85" r="70" fill="none" stroke="#E5E1D6" stroke-width="14"/>
+ <circle id="aiGaugeFill" cx="85" cy="85" r="70" fill="none"
+ stroke="#5A3F8C" stroke-width="14"
+ stroke-dasharray="439.8" stroke-dashoffset="439.8"
+ stroke-linecap="round"
+ style="transition: stroke-dashoffset 1.5s cubic-bezier(.22,.9,.3,1)"/>
+ </svg>
+ <div class="ai-gauge-text">
+ <div class="gauge-num" id="aiGaugeNum">0</div>
+ <div class="gauge-denom">/ 100</div>
+ </div>
+ </div>
+ <div class="ai-score-info">
+ <div class="ai-score-tag" data-en="AI Sustainability Index" data-rj="AI टिकावूपण सूचकांक">AI Sustainability Index</div>
+ <div class="ai-score-verdict" id="aiScoreVerdict">—</div>
+ <div class="ai-score-desc" id="aiScoreDesc" data-en="Run a calculation above to generate your score." data-rj="अपणो स्कोर बणावण वास्ते ऊपर गणना करो।">Run a calculation above to generate your score.</div>
+ <div class="ai-score-breakdown" id="aiScoreBreakdown"></div>
+ </div>
+ </div>
+ </div>
+
+ <!-- 5. ACHIEVEMENT SYSTEM -->
+ <div class="cgi-card cgi-fade" style="margin-top:18px;">
+ <div class="cgi-card-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="5"/><path d="M9 12.8 7.5 21l4.5-2.5L16.5 21l-1.5-8.2"/></svg> <span data-en="Achievement System" data-rj="उपलब्धि प्रणाली">Achievement System</span></div>
+ <div class="cgi-card-sub" data-en="Badges unlock automatically as your results cross each milestone." data-rj="बैज अपणे आप खुलती जावैं जदूं तुहारे परिणाम हर मील का पत्थर पार करैं।">Badges unlock automatically as your results cross each milestone.</div>
+ <div class="ai-achieve-grid" id="ai-achieve-grid"></div>
+ </div>
+
+ <!-- 6. PRESENTATION MODE -->
+ <div class="ai-present-trigger cgi-fade">
+ <div class="pt-text">
+ <strong data-en="Presentation Mode" data-rj="प्रेज़ेंटेशन मोड">Presentation Mode</strong>
+ <span data-en="Open a full-screen, judge-ready view of your AI insights and achievements." data-rj="अपनी AI जानकारी अैं उपलब्धियों रो पूर्ण-स्क्रीन, जज-तैयार दृश्य खोलो।">Open a full-screen, judge-ready view of your AI insights and achievements.</span>
+ </div>
+ <button class="ai-present-btn" onclick="openPresentMode()" data-en="Enter Presentation Mode" data-rj="प्रेज़ेंटेशन मोड में जावो">Enter Presentation Mode</button>
+ </div>
+
+ </div>
+ <!-- END AI INTELLIGENCE CENTER -->
+
+ <!-- ROW 4: Export Report (full width) -->
+ <div class="export-card cgi-fade" id="cgi-export-card">
+ <div class="export-left">
+ <div class="export-title" data-en="Export Sustainability Report" data-rj="टिकावूपण रिपोर्ट एक्सपोर्ट करो">Export Sustainability Report</div>
+ <div class="export-desc" data-en="Generate a complete printable report including all your input parameters, calculation results, environmental impact metrics, government scheme eligibility, community projections, and SDG contributions." data-rj="सभी इनपुट पैरामीटर, गणना परिणाम, पर्यावरण प्रभाव मेट्रिक्स, सरकारी योजना पात्रता, सामुदायिक अनुमान, अैं SDG योगदान सहित एक पूरी प्रिंट करण योग्य रिपोर्ट बणावो।">Generate a complete printable report including all your input parameters, calculation results, environmental impact metrics, government scheme eligibility, community projections, and SDG contributions.</div>
+ <div class="export-chips">
+ <span class="export-chip" data-en="Input Parameters" data-rj="इनपुट पैरामीटर">Input Parameters</span>
+ <span class="export-chip" data-en="Harvest Results" data-rj="हार्वेस्ट परिणाम">Harvest Results</span>
+ <span class="export-chip" data-en="Eco Impact" data-rj="ईको प्रभाव">Eco Impact</span>
+ <span class="export-chip" data-en="Scheme Eligibility" data-rj="योजना पात्रता">Scheme Eligibility</span>
+ <span class="export-chip" data-en="5-Year Projection" data-rj="5 साल रो अनुमान"> 5-Year Projection</span>
+ <span class="export-chip" data-en="SDG Mapping" data-rj="SDG मैपिंग">SDG Mapping</span>
+ </div>
+ </div>
+ <div class="export-btn-wrap">
+ <button class="export-btn primary" onclick="cgiExportReport()" data-en="Print / Save as PDF" data-rj="प्रिंट करो / PDF में सेव करो">Print / Save as PDF</button>
+ <button class="export-btn secondary" onclick="cgiCopyReport()" data-en="Copy Report Text" data-rj="रिपोर्ट टेक्स्ट कॉपी करो">Copy Report Text</button>
+ </div>
+ </div>
+
+ </div>
+ <!-- END COMMUNITY & GOVERNMENT INSIGHTS -->
+
+ <div class="report-cta">
+ <div style="font-weight:700; color:var(--green-dark); font-size:16px;" data-en="Your assessment is ready" data-rj="तुहारो आंकलण तैयार है">Your assessment is ready</div>
+ <div style="font-size:13.5px; color:var(--grey-dark); margin-top:4px;" data-en="Download a complete report with all calculations and recommendations" data-rj="सगळी गणना अैं सलाह सागै पूरी रिपोर्ट डाउनलोड करो">Download a complete report with all calculations and recommendations</div>
+ <button class="report-btn" onclick="generateReport()" data-en="Generate Full Report PDF" data-rj="पूरी रिपोर्ट PDF बणावो">Generate Full Report PDF</button>
+ </div>
+
+ </div>
+
+</div>
+
+<footer style="text-align:center; padding:24px; font-size:12.5px; color:var(--grey-dark); border-top:2px solid var(--grey-light);">
+ <div style="font-weight:700; color:var(--green-dark); margin-bottom:4px;" data-en="Day 11 / 30 — 30 Days · 30 SIH Solutions" data-rj="दिन 11 / 30 — 30 दिन · 30 SIH हल">Day 11 / 30 — 30 Days · 30 SIH Solutions</div>
+ <div data-en="Built for Smart India Hackathon · Sustainable Water Management Initiative" data-rj="स्मार्ट इंडिया हैकाथॉन वास्ते बणायो · टिकावू पाणी प्रबंधन परियोजना">Built for Smart India Hackathon · Sustainable Water Management Initiative</div>
+</footer>
+
+<!-- ===================================================
+ PRESENTATION MODE OVERLAY (full-screen)
+ =================================================== -->
+<div id="presentOverlay">
+ <div class="present-topbar">
+ <div class="pt-title" data-en="AI Intelligence Center — Presentation Mode" data-rj="AI बुद्धिमत्ता केंद्र — प्रेज़ेंटेशन मोड">AI Intelligence Center — Presentation Mode</div>
+ <button class="present-exit-btn" onclick="closePresentMode()" data-en="Exit Presentation" data-rj="प्रेज़ेंटेशन छोड़ो">Exit Presentation</button>
+ </div>
+ <div class="present-body" id="presentBody">
+ <!-- populated dynamically by renderPresentMode() -->
+ </div>
+</div>
+
+<!-- ===================================================
+ GUIDED WALKTHROUGH OVERLAY (judges / demo mode)
+ =================================================== -->
+<div id="tourOverlay" role="dialog" aria-modal="true" aria-label="Guided walkthrough">
+ <div class="tour-dim"></div>
+ <div class="tour-spotlight" id="tourSpotlight"></div>
+ <div class="tour-card" id="tourCard">
+ <div class="tour-step-label" id="tourStepLabel">Step 1 of 8</div>
+ <div class="tour-title" id="tourTitle">—</div>
+ <div class="tour-desc" id="tourDesc">—</div>
+ <div class="tour-controls">
+ <div class="tour-dots" id="tourDots"></div>
+ <div class="tour-nav-btns">
+ <button class="tour-nav-btn tour-exit" onclick="endTour()" type="button" data-en="Exit" data-rj="बाहर जावो">Exit</button>
+ <button class="tour-nav-btn tour-prev" id="tourPrevBtn" onclick="tourStep(-1)" type="button">Back</button>
+ <button class="tour-nav-btn tour-next" id="tourNextBtn" onclick="tourStep(1)" type="button">Next →</button>
+ </div>
+ </div>
+ </div>
+</div>
+
+<script>
+ // ---------- LANGUAGE ----------
+ function setLang(lang){
+ document.querySelectorAll('[data-en]').forEach(function(el){
+ // Don't overwrite input values/placeholders - handle separately
+ if(el.tagName !== 'INPUT' && el.tagName !== 'SELECT' && el.tagName !== 'TEXTAREA'){
+ el.textContent = el.getAttribute('data-' + lang);
+ }
+ });
+ // Update placeholders
+ document.querySelectorAll('[data-ph-rj]').forEach(function(el){
+ el.placeholder = el.getAttribute('data-ph-' + lang) || el.getAttribute('data-ph-en') || el.placeholder;
+ });
+ document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+ document.getElementById('btn-rj').classList.toggle('active', lang === 'rj');
+ document.getElementById('btn-en').setAttribute('aria-pressed', lang === 'en' ? 'true' : 'false');
+ document.getElementById('btn-rj').setAttribute('aria-pressed', lang === 'rj' ? 'true' : 'false');
+ document.documentElement.setAttribute('lang', lang === 'rj' ? 'hi' : 'en');
+ // re-apply dynamic content if results already shown
+ if(document.getElementById('results-section').style.display === 'block'){
+ renderDynamicText(lang);
+ }
+ }
+
+ let currentLang = 'en';
+ const origSetLang = setLang;
+ setLang = function(lang){ currentLang = lang; origSetLang(lang); };
+
+ // ---------- RUNOFF COEFFICIENTS BY AREA TYPE ----------
+ const RUNOFF_COEFFICIENT = {
+ home: 0.85,
+ school: 0.80,
+ farm: 0.50
+ };
+
+ const SEASON_SHARE = { summer: 0.15, monsoon: 0.75, winter: 0.10 };
+
+ // Average Indian household (4-5 members) daily water need, based on ~135 LPCD benchmark
+ const HOUSEHOLD_DAILY_NEED_L = 650;
+
+ let lastCalc = null;
+
+ // ---------- TOAST NOTIFICATIONS (replaces alert()) ----------
+ function showToast(message, type){
+ const host = document.getElementById('toastHost');
+ if(!host) { return; }
+ const el = document.createElement('div');
+ el.className = 'toast' + (type ? ' ' + type : '');
+ el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+ el.textContent = message;
+ host.appendChild(el);
+ setTimeout(() => {
+ el.classList.add('leaving');
+ setTimeout(() => el.remove(), 320);
+ }, 3200);
+ }
+
+ // ---------- INLINE FIELD VALIDATION ----------
+ function setFieldError(id, message){
+ const input = document.getElementById(id);
+ const errorEl = document.getElementById(id + '-error');
+ const field = input ? input.closest('.field') : null;
+ if(!input || !errorEl) return;
+
+ if(message){
+ input.setAttribute('aria-invalid', 'true');
+ errorEl.textContent = message;
+ errorEl.classList.add('show');
+ if(field){
+ field.classList.remove('shake');
+ // restart the shake animation even if it's already mid-flight
+ requestAnimationFrame(() => requestAnimationFrame(() => field.classList.add('shake')));
+ }
+ } else {
+ input.setAttribute('aria-invalid', 'false');
+ errorEl.classList.remove('show');
+ errorEl.textContent = '';
+ if(field) field.classList.remove('shake');
+ }
+ }
+
+ function clearAllFieldErrors(){
+ ['roofArea','rainfall','efficiency'].forEach(id => setFieldError(id, ''));
+ }
+
+ function validateInputs(roofArea, rainfall, efficiency){
+ clearAllFieldErrors();
+ let firstInvalidId = null;
+ const msgEmpty = currentLang === 'rj' ? 'ये खाली नहीं छोड़ सको' : 'This field is required';
+ const msgPositive = currentLang === 'rj' ? '0 सूं बड़ी संख्या भरो' : 'Enter a value greater than 0';
+ const msgPct = currentLang === 'rj' ? '0–100 रे बीचाळो भरो' : 'Enter a value between 0 and 100';
+
+ if(!document.getElementById('roofArea').value.trim()){ setFieldError('roofArea', msgEmpty); firstInvalidId = firstInvalidId || 'roofArea'; }
+ else if(isNaN(roofArea) || roofArea <= 0){ setFieldError('roofArea', msgPositive); firstInvalidId = firstInvalidId || 'roofArea'; }
+
+ if(!document.getElementById('rainfall').value.trim()){ setFieldError('rainfall', msgEmpty); firstInvalidId = firstInvalidId || 'rainfall'; }
+ else if(isNaN(rainfall) || rainfall <= 0){ setFieldError('rainfall', msgPositive); firstInvalidId = firstInvalidId || 'rainfall'; }
+
+ if(!document.getElementById('efficiency').value.trim()){ setFieldError('efficiency', msgEmpty); firstInvalidId = firstInvalidId || 'efficiency'; }
+ else if(isNaN(efficiency) || efficiency <= 0){ setFieldError('efficiency', msgPositive); firstInvalidId = firstInvalidId || 'efficiency'; }
+ else if(efficiency > 100){ setFieldError('efficiency', msgPct); firstInvalidId = firstInvalidId || 'efficiency'; }
+
+ return firstInvalidId;
+ }
+
+ function calculate(){
+ const roofArea = parseFloat(document.getElementById('roofArea').value);
+ const rainfall = parseFloat(document.getElementById('rainfall').value);
+ const efficiency = parseFloat(document.getElementById('efficiency').value);
+ const areaType = document.getElementById('areaType').value;
+
+ const firstInvalidId = validateInputs(roofArea, rainfall, efficiency);
+ if(firstInvalidId){
+ showToast(currentLang === 'rj' ? 'किरपा करी हाइलाइट करियोड़ा फील्ड सुधारो' : 'Please fix the highlighted field(s)', 'error');
+ const el = document.getElementById(firstInvalidId);
+ el.focus({ preventScroll: false });
+ el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+ return;
+ }
+
+ runCalculationWithLoadingState(() => {
+ const runoff = RUNOFF_COEFFICIENT[areaType];
+ const roofAreaSqM = roofArea * 0.0929;
+ const effFraction = Math.min(efficiency, 100) / 100;
+
+ // Harvested water (Liters) = Area(sq m) x Rainfall(mm) x Runoff coeff x Efficiency
+ // 1 sq m x 1 mm rainfall = 1 liter
+ const harvested = roofAreaSqM * rainfall * runoff * effFraction;
+
+ // "Before" potential at zero system (full uncollected) = max theoretical capture without losses
+ const maxPotential = roofAreaSqM * rainfall * runoff; // at 100% efficiency
+ const wasted = Math.max(maxPotential - harvested, 0);
+
+ // Score: blend of efficiency and how close harvested is to max potential, scaled 0-100
+ let score = Math.round((effFraction * 70) + (Math.min(harvested / Math.max(maxPotential,1), 1) * 30));
+ score = Math.max(0, Math.min(100, score));
+
+ lastCalc = { roofArea, rainfall, efficiency, areaType, harvested, maxPotential, wasted, score };
+
+ renderResults();
+ document.getElementById('results-section').style.display = 'block';
+ document.getElementById('results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+ showToast(currentLang === 'rj' ? ' गणना तैयार है' : ' Calculation ready', 'success');
+ });
+ }
+
+ // ---------- LOADING STATE WRAPPER ----------
+ // Wraps the (synchronous, near-instant) calculation in a brief, deliberate
+ // loading state so the button gives clear "working on it" feedback instead
+ // of an instant jump-cut to results. Uses requestAnimationFrame + a short
+ // timeout rather than blocking the main thread.
+ function runCalculationWithLoadingState(work){
+ const btn = document.getElementById('calcBtn');
+ const label = document.getElementById('calcBtnLabel');
+ if(!btn || !label){ work(); return; }
+
+ const originalHTML = label.innerHTML;
+ btn.disabled = true;
+ btn.classList.add('is-loading');
+ label.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>' +
+ (currentLang === 'rj' ? 'गणना हो रही है…' : 'Calculating…');
+
+ // A short, deliberate delay (not artificial busywork on the main thread)
+ // so the spinner is perceptible even though the math itself is instant.
+ setTimeout(() => {
+ work();
+ btn.disabled = false;
+ btn.classList.remove('is-loading');
+ label.innerHTML = originalHTML;
+ }, 450);
+ }
+
+ function fmt(n){
+ return Math.round(n).toLocaleString('en-IN');
+ }
+
+ function buildImpactStatement(householdDays){
+ // Express as either "N households for 1 day" or "1 household for N days", whichever reads better
+ if(householdDays >= 1){
+ const households = Math.round(householdDays);
+ return currentLang === 'rj'
+ ? `ये पाणी करीब ${households} परिवारों री एक दिन री जरूरत रे बराबर है`
+ : `That's enough water to meet the daily needs of about ${households} families for one day`;
+ } else {
+ const days = Math.max(Math.round(householdDays * 30) / 30, 0.1);
+ const days1 = Math.round(days);
+ return currentLang === 'rj'
+ ? `ये पाणी एक परिवार री लगभग ${days1} दिन री जरूरत रे बराबर है`
+ : `That's enough water to meet one family's needs for about ${days1} day(s)`;
+ }
+ }
+
+ function renderResults(){
+ const { harvested, wasted, maxPotential, score, areaType, efficiency } = lastCalc;
+
+ animateCount(document.getElementById('harvestedValue'), harvested, 900);
+ animateCount(document.getElementById('scoreValue'), score, 900, (v) => Math.round(v).toString());
+
+ const statusEl = document.getElementById('statusBadge');
+ if(score >= 75){
+ statusEl.className = 'badge excellent';
+ statusEl.textContent = currentLang === 'rj' ? 'उत्तम ' : 'Excellent ';
+ } else if(score >= 45){
+ statusEl.className = 'badge good';
+ statusEl.textContent = currentLang === 'rj' ? 'ठीक ' : 'Good ';
+ } else {
+ statusEl.className = 'badge poor';
+ statusEl.textContent = currentLang === 'rj' ? 'सुधार जरूरी ' : 'Needs Improvement ';
+ }
+
+ // Water Saving Opportunity Detector
+ animateCount(document.getElementById('detectorCollectable'), harvested, 900);
+ animateCount(document.getElementById('detectorWasted'), wasted, 900);
+
+ // Loss detector
+ const lossPanel = document.getElementById('lossPanel');
+ const lossHeadline = document.getElementById('lossHeadline');
+ const impactEl = document.getElementById('impactStatement');
+ const householdDays = wasted / HOUSEHOLD_DAILY_NEED_L;
+
+ if(wasted > maxPotential * 0.25){
+ lossPanel.className = 'loss-panel';
+ lossHeadline.textContent = (currentLang === 'rj'
+ ? `तूं हर साल ${fmt(wasted)} लीटर वरसाती पाणी गुमावो रिया हो`
+ : `You are losing ${fmt(wasted)} liters of rainwater annually`);
+ impactEl.textContent = buildImpactStatement(householdDays);
+ } else {
+ lossPanel.className = 'loss-panel low-loss';
+ lossHeadline.textContent = (currentLang === 'rj'
+ ? `बधाई! सिर्फ ${fmt(wasted)} लीटर ही गुमी जावै है`
+ : `Great work! Only ${fmt(wasted)} liters are going uncollected`);
+ impactEl.textContent = wasted > 0 ? buildImpactStatement(householdDays) : '';
+ }
+
+ // Before / After — animated simulation
+ animateBeforeAfter(maxPotential, harvested);
+
+ // Recommendations
+ renderRecommendations();
+
+ // Seasonal
+ animateCount(document.getElementById('summerVal'), harvested * SEASON_SHARE.summer, 900);
+ animateCount(document.getElementById('monsoonVal'), harvested * SEASON_SHARE.monsoon, 900);
+ animateCount(document.getElementById('winterVal'), harvested * SEASON_SHARE.winter, 900);
+
+ // Environmental Impact Section
+ renderEcoImpact(harvested, score);
+ }
+
+ // ---------- BEFORE/AFTER ANIMATED SIMULATION ----------
+ function animateCount(el, target, duration, formatter){
+ const format = formatter || fmt;
+ const prefersReducedMotion = window.matchMedia &&
+ window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ if(prefersReducedMotion){
+ el.textContent = format(target);
+ el.dataset.raw = target;
+ return;
+ }
+ const start = parseFloat(el.dataset.raw || '0') || 0;
+ const startTime = performance.now();
+ function tick(now){
+ const t = Math.min((now - startTime) / duration, 1);
+ const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+ const val = start + (target - start) * eased;
+ el.textContent = format(val);
+ if(t < 1){
+ requestAnimationFrame(tick);
+ } else {
+ el.textContent = format(target);
+ el.dataset.raw = target;
+ }
+ }
+ requestAnimationFrame(tick);
+ }
+
+ function animateBeforeAfter(maxPotential, harvested){
+ const beforeBar = document.getElementById('beforeBar');
+ const afterBar = document.getElementById('afterBar');
+ const afterCard = document.getElementById('afterCard');
+
+ const afterPct = Math.min((harvested / Math.max(maxPotential, 1)) * 100, 100);
+
+ // reset bars to 0 first so the fill animation replays every time
+ beforeBar.style.width = '0%';
+ afterBar.style.width = '0%';
+
+ // animate numbers
+ animateCount(document.getElementById('beforeValue'), maxPotential, 900);
+ animateCount(document.getElementById('afterValue'), harvested, 900);
+ animateCount(document.getElementById('beforePct'), 100, 900);
+ animateCount(document.getElementById('afterPct'), afterPct, 900);
+
+ // animate bars on next frame so the transition actually fires
+ requestAnimationFrame(() => {
+ requestAnimationFrame(() => {
+ beforeBar.style.width = '100%';
+ afterBar.style.width = afterPct + '%';
+ });
+ });
+
+ // little glow pulse on the "after" card to draw the eye to the savings
+ afterCard.classList.remove('animating');
+ requestAnimationFrame(() => afterCard.classList.add('animating'));
+ }
+
+ function recommendTankSize(annualLiters){
+ // Suggest tank sized for roughly one month of average capture, rounded to common sizes
+ const monthly = annualLiters / 12;
+ const sizes = [1000, 2000, 3000, 5000, 7500, 10000, 15000, 20000];
+ let chosen = sizes[0];
+ for(const s of sizes){
+ if(monthly <= s){ chosen = s; break; }
+ chosen = s;
+ }
+ return chosen;
+ }
+
+ function renderRecommendations(){
+ const { roofArea, rainfall, efficiency, areaType, harvested } = lastCalc;
+ const tank = recommendTankSize(harvested);
+ const list = document.getElementById('recoList');
+ list.innerHTML = '';
+
+ const items = [];
+
+ // ---- TANK SIZE (driven by harvested volume, derived from roof area + rainfall) ----
+ items.push({
+ cat: 'tank', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="12" height="15" rx="2"/><line x1="6" y1="12" x2="18" y2="12"/></svg>', tag: { en: 'Storage', rj: 'भंडारण' },
+ titleEn: 'Recommended Tank Size', titleRj: 'सुझायो टैंक आकार',
+ detailEn: `Based on your ${fmt(roofArea)} sq ft roof and ${fmt(rainfall)}mm rainfall, a ${tank.toLocaleString('en-IN')}L tank gives steady year-round storage.`,
+ detailRj: `तुहारी ${fmt(roofArea)} वर्ग फुट छत अैं ${fmt(rainfall)}mm वरसाद रे आधार पर, ${tank.toLocaleString('en-IN')}L टैंक सालभर वास्ते सही रहसी।`
+ });
+
+ // ---- ROOF AREA based tips ----
+ if(roofArea < 600){
+ items.push({
+ cat: 'catchment', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 12 5l8 7"/><path d="M5.5 11v8h13v-8"/></svg>', tag: { en: 'Catchment', rj: 'कैचमेंट' },
+ titleEn: 'Small Roof — Add Auxiliary Catchment', titleRj: 'छोटी छत — सहायक कैचमेंट जोड़ो',
+ detailEn: 'Your catchment area is small. Consider channeling runoff from a courtyard, terrace, or shed roof into the same system to boost yearly volume.',
+ detailRj: 'तुहारो कैचमेंट क्षेत्र छोटो है। आंगण, छत या शेड रो पाणी भी इणी सिस्टम में जोड़ो तो सालाना मात्रा बधसी।'
+ });
+ } else if(roofArea > 2500){
+ items.push({
+ cat: 'catchment', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 12 5l8 7"/><path d="M5.5 11v8h13v-8"/></svg>', tag: { en: 'Catchment', rj: 'कैचमेंट' },
+ titleEn: 'Large Roof — Use Multiple Collection Points', titleRj: 'बड़ी छत — कई संग्रहण बिंदु लगावो',
+ detailEn: 'A roof this large benefits from 2–3 downpipe collection points instead of one, reducing overflow loss during heavy bursts of rain.',
+ detailRj: 'इतरी बड़ी छत वास्ते एक ही नहीं, 2–3 डाउनपाइप संग्रहण बिंदु लगावो ताकि तेज वरसाद में पाणी बहीने सूं नीं बचै।'
+ });
+ } else {
+ items.push({
+ cat: areaType === 'farm' ? 'catchment' : 'tank', icon: areaType === 'farm' ? '' : '',
+ tag: { en: 'Catchment', rj: 'कैचमेंट' },
+ titleEn: 'Roof Improvement Tip', titleRj: 'छत सुधार सलाह',
+ detailEn: areaType === 'farm'
+ ? 'For farm catchments, line the collection channel to cut seepage loss before water reaches storage.'
+ : 'A smooth, sloped, debris-free roof surface can raise your runoff efficiency by 10–15%.',
+ detailRj: areaType === 'farm'
+ ? 'खेत वास्ते, संग्रहण नहर में लाइनिंग लगावण सूं रिसाव घटसी।'
+ : 'साफ अैं ढळान वाळी छत सूं रनऑफ दक्षता 10–15% तक बध सकै है।'
+ });
+ }
+
+ // ---- RAINFALL based tips ----
+ if(rainfall < 400){
+ items.push({
+ cat: 'rainfall', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.5a4.2 4.2 0 0 1 .3-8.4 5.4 5.4 0 0 1 10.4 1.7 3.6 3.6 0 0 1-.9 7.1H7Z"/><path d="M9 19.5 8 21.5M13 19.5 12 21.5M17 19.5 16 21.5"/></svg>', tag: { en: 'Rainfall', rj: 'वरसाद' },
+ titleEn: 'Low Rainfall Zone — Maximize Every Drop', titleRj: 'घट वरसाद वाळो इलाको — हर बूंद बचावो',
+ detailEn: 'Your area gets limited rainfall, so even small efficiency losses matter. Pair harvesting with greywater reuse to stretch your water supply further.',
+ detailRj: 'तुहारे इलाके में वरसाद घट है, तो छोटी सी कमी भी मायने राखै है। हार्वेस्टिंग रे सागै ग्रेवाटर रियूज भी अपणावो।'
+ });
+ } else if(rainfall > 1200){
+ items.push({
+ cat: 'rainfall', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.5a4.2 4.2 0 0 1 .3-8.4 5.4 5.4 0 0 1 10.4 1.7 3.6 3.6 0 0 1-.9 7.1H7Z"/><path d="M9 19.5 8 21.5M13 19.5 12 21.5M17 19.5 16 21.5"/></svg>', tag: { en: 'Rainfall', rj: 'वरसाद' },
+ titleEn: 'High Rainfall Zone — Plan Overflow Safely', titleRj: 'भरपूर वरसाद वाळो इलाको — ओवरफ्लो रो ध्यान राखो',
+ detailEn: 'With heavy rainfall, add a properly routed overflow outlet so excess water recharges the ground instead of causing waterlogging near the foundation.',
+ detailRj: 'भरपूर वरसाद रे कारण, ओवरफ्लो वास्ते सही निकासी राखो ताकि अतिरिक्त पाणी जमीन में जावै, न के नींव रे नजीक जमो रहै।'
+ });
+ } else {
+ items.push({
+ cat: 'rainfall', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.5a4.2 4.2 0 0 1 .3-8.4 5.4 5.4 0 0 1 10.4 1.7 3.6 3.6 0 0 1-.9 7.1H7Z"/><path d="M9 19.5 8 21.5M13 19.5 12 21.5M17 19.5 16 21.5"/></svg>', tag: { en: 'Rainfall', rj: 'वरसाद' },
+ titleEn: 'Moderate Rainfall — Stable Yield', titleRj: 'मध्यम वरसाद — स्थिर पैदावार',
+ detailEn: 'Your rainfall level supports a dependable, consistent harvest across most of the year with a properly sized tank.',
+ detailRj: 'तुहारे इलाके रो वरसाद, सही आकार रे टैंक रे सागै सालभर भरोसेमंद पाणी दे सकै है।'
+ });
+ }
+
+ // ---- EFFICIENCY based tips ----
+ if(efficiency < 60){
+ items.push({
+ cat: 'priority', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"/><line x1="12" y1="9" x2="12" y2="14"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></svg>', tag: { en: 'Priority Fix', rj: 'पहलां सुधारो' },
+ titleEn: 'Low Efficiency — Inspect System First', titleRj: 'घट दक्षता — पहलां सिस्टम जांचो',
+ detailEn: 'Efficiency below 60% usually means leaky joints, clogged gutters, or a missing first-flush diverter. Fix these before adding tank capacity.',
+ detailRj: '60% सूं घट दक्षता रो मतलब है लीकेज, बंद नाली या फर्स्ट-फ्लश डायवर्टर री कमी। टैंक बधावण सूं पहलां ये सुधारो।'
+ });
+ } else if(efficiency < 80){
+ items.push({
+ cat: 'filter', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7.5V19l-4 2v-8.5L4 5z"/></svg>', tag: { en: 'Filtration', rj: 'फिल्ट्रेशन' },
+ titleEn: 'Filtration Recommended', titleRj: 'फिल्ट्रेशन री जरूरत',
+ detailEn: 'Adding a leaf/silt filter mesh before the tank inlet will improve both water quality and flow efficiency.',
+ detailRj: 'टैंक रे पहलां पत्ता/मिट्टी फिल्टर लगावण सूं पाणी अैं प्रवाह दोनूं सुधरसी।'
+ });
+ } else {
+ items.push({
+ cat: 'maintenance', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 7a3.5 3.5 0 1 0-4.9 4.9L4 17.5 6.5 20l5.6-5.6A3.5 3.5 0 0 0 17 9.5l-2.5-2.5z"/></svg>', tag: { en: 'Maintenance', rj: 'देखभाल' },
+ titleEn: 'Efficiency Excellent — Just Maintain It', titleRj: 'दक्षता बढ़िया है — सिर्फ देखभाल राखो',
+ detailEn: 'Your system efficiency is already healthy. A basic mesh filter and a yearly gutter clean-up is all that\u2019s needed to keep it this way.',
+ detailRj: 'तुहारी सिस्टम दक्षता पहलां ही बढ़िया है। एक सादो मेश फिल्टर अैं सालाना नाली सफाई ही काफी है।'
+ });
+ }
+
+ items.forEach(item => {
+ const div = document.createElement('div');
+ div.className = 'reco-card ' + item.cat;
+ div.innerHTML = `
+ <div class="reco-top">
+ <div class="reco-icon">${item.icon}</div>
+ <div class="reco-title">${currentLang === 'rj' ? item.titleRj : item.titleEn}</div>
+ </div>
+ <div class="reco-detail">${currentLang === 'rj' ? item.detailRj : item.detailEn}</div>
+ <span class="reco-tag">${currentLang === 'rj' ? item.tag.rj : item.tag.en}</span>`;
+ list.appendChild(div);
+ });
+ }
+
+ function renderDynamicText(lang){
+ if(!lastCalc) return;
+ renderResults();
+ const { harvested, maxPotential, roofArea, score } = lastCalc;
+ const co2 = Math.round((harvested * CO2_G_PER_L) / 1000);
+ renderLeaderboard(harvested);
+ renderSchemeEligibility(roofArea, harvested);
+ renderSDG(harvested, co2);
+ renderProjection(harvested, maxPotential);
+ renderAIIntelligence(lastCalc);
+ }
+
+ // ---------- ENVIRONMENTAL IMPACT ----------
+ function renderEcoImpact(harvestedL, score){
+ // 1. Eco Score ring animation
+ const ecoScore = Math.min(100, Math.round(score * 0.6 + (Math.min(harvestedL / 50000, 1) * 40)));
+ const circumference = 2 * Math.PI * 60; // r=60
+ const offset = circumference * (1 - ecoScore / 100);
+
+ const ring = document.getElementById('ecoRingFill');
+ // reset then animate
+ ring.style.strokeDashoffset = circumference;
+ requestAnimationFrame(() => requestAnimationFrame(() => {
+ ring.style.strokeDashoffset = offset;
+ }));
+
+ // Animate number
+ const numEl = document.getElementById('ecoScoreNum');
+ animateCount(numEl, ecoScore, 1200);
+
+ // Status badge
+ const statusEl = document.getElementById('ecoScoreStatus');
+ if(ecoScore >= 71){
+ statusEl.className = 'eco-score-status';
+ statusEl.textContent = currentLang === 'rj' ? ' उत्तम पाणी संरक्षण' : ' Excellent Water Conservation';
+ ring.setAttribute('stroke', '#3F8C4A');
+ } else if(ecoScore >= 41){
+ statusEl.className = 'eco-score-status moderate';
+ statusEl.textContent = currentLang === 'rj' ? ' मध्यम संरक्षण' : ' Moderate Conservation';
+ ring.setAttribute('stroke', '#B8862E');
+ } else {
+ statusEl.className = 'eco-score-status poor';
+ statusEl.textContent = currentLang === 'rj' ? ' सुधार जरूरी' : ' Needs Improvement';
+ ring.setAttribute('stroke', '#B23A2E');
+ }
+
+ // 2. Household months (avg 650L/day * 30 = 19500L/month)
+ const MONTHLY_L = HOUSEHOLD_DAILY_NEED_L * 30;
+ const months = Math.max(0.1, harvestedL / MONTHLY_L);
+ const monthsEl = document.getElementById('householdMonths');
+ animateCount(monthsEl, months, 900);
+ document.getElementById('householdStatement').textContent = currentLang === 'rj'
+ ? `${fmt(harvestedL)} लीटर पाणी हर साल एकठो करण सूं एक परिवार (4–5 सदस्य) करीब ${Math.round(months)} महीनो इणी सिस्टम पर निर्भर रह सकै है — नगर अैं जमीनी पाणी री निर्भरता घटसी।`
+ : `Harvesting ${fmt(harvestedL)} liters annually means one family of 4–5 members can rely on this system for approximately ${Math.round(months)} month${Math.round(months) !== 1 ? 's' : ''} — reducing their dependency on municipal or groundwater sources.`;
+
+ // 3. Tree equivalent: an average tree needs ~450L/year of supplemental water
+ const TREE_WATER_L = 450;
+ const trees = Math.round(harvestedL / TREE_WATER_L);
+ animateCount(document.getElementById('treeEquiv'), trees, 1000, (v) => Math.round(v).toLocaleString('en-IN'));
+ document.getElementById('treeStatement').textContent = currentLang === 'rj'
+ ? `${fmt(harvestedL)} लीटर पाणी बचावण सूं ${trees.toLocaleString('en-IN')} पूरा उगियोड़ा पेड़ां नै साल भर पाणी दी सकां — शहरी हरियाळी वास्ते बड़ो योगदान।`
+ : `Saving ${fmt(harvestedL)} liters is the equivalent of providing supplemental water to support ${trees.toLocaleString('en-IN')} fully grown trees for an entire year — a meaningful boost for urban green cover.`;
+
+ // 4. Carbon: ~0.5 g CO₂ per liter saved (pumping + treatment)
+ const CO2_G_PER_L = 0.5;
+ const carbonKg = Math.round((harvestedL * CO2_G_PER_L) / 1000);
+ animateCount(document.getElementById('carbonKg'), carbonKg, 1000, (v) => Math.round(v).toLocaleString('en-IN'));
+ // Progress: avg Indian household water carbon ~250 kg/yr
+ const carbonPct = Math.min(Math.round((carbonKg / 250) * 100), 100);
+ const carbonBar = document.getElementById('carbonBar');
+ carbonBar.style.width = '0%';
+ requestAnimationFrame(() => requestAnimationFrame(() => { carbonBar.style.width = carbonPct + '%'; }));
+ document.getElementById('carbonPctLabel').textContent = carbonPct + (currentLang === 'rj' ? '% औसत घरेलू पाणी कार्बन फुटप्रिंट घटायो' : '% of avg household water carbon footprint eliminated');
+
+ // 5. Community (100 houses)
+ const communityL = harvestedL * 100;
+ animateCount(document.getElementById('communityLiters'), communityL, 1000);
+ const communityFamilies = Math.round(communityL / (HOUSEHOLD_DAILY_NEED_L * 365));
+ animateCount(document.getElementById('communityFamilies'), communityFamilies, 1000, (v) => Math.round(v).toLocaleString('en-IN'));
+ }
+
+ function generateReport(){
+ showToast(currentLang === 'rj' ? ' रिपोर्ट तैयार हो रही है...' : ' Generating your report...', 'success');
+ // Hook actual PDF generation here later
+ }
+
+ // ============================================================
+ // COMMUNITY & GOVERNMENT INSIGHTS — JavaScript
+ // ============================================================
+
+ // Constants shared with main dashboard
+ const CO2_G_PER_L = 0.5; // g CO₂ per litre
+
+ // ---------- LEADERBOARD ----------
+ // Five sample communities; "Your System" slot is injected dynamically.
+ const LB_COMMUNITIES = [
+ { name: 'Rajnagar Colony', state: 'Rajasthan', multiplier: 1.60 },
+ { name: 'Green Valley Ward', state: 'Maharashtra', multiplier: 1.35 },
+ { name: 'Sundarpur Village', state: 'Tamil Nadu', multiplier: 1.15 },
+ { name: 'Nilgiri Heights', state: 'Karnataka', multiplier: 0.90 },
+ { name: 'Saraswati Nagar', state: 'Gujarat', multiplier: 0.70 },
+ ];
+
+ function renderLeaderboard(userHarvested){
+ const list = document.getElementById('cgi-lb-list');
+ if(!list) return;
+ list.innerHTML = '';
+
+ // Build entries: fixed communities use multiplier × user's harvest
+ const entries = LB_COMMUNITIES.map(c => ({
+ name: c.name,
+ meta: c.state,
+ liters: Math.round(userHarvested * c.multiplier),
+ isUser: false
+ }));
+ entries.push({ name: currentLang === 'rj' ? 'तुहारो सिस्टम' : 'Your System', meta: currentLang === 'rj' ? 'तुहारो स्थान' : 'Your Location', liters: Math.round(userHarvested), isUser: true });
+ entries.sort((a, b) => b.liters - a.liters);
+
+ const maxL = entries[0].liters;
+ const rankLabels = ['gold','silver','bronze'];
+
+ entries.forEach((e, i) => {
+ const rankClass = rankLabels[i] || '';
+ const pct = maxL > 0 ? Math.round((e.liters / maxL) * 100) : 0;
+ const rankNum = i === 0 ? '' : i === 1 ? '' : i === 2 ? '' : '#' + (i+1);
+ const row = document.createElement('div');
+ row.className = 'cgi-lb-row' + (e.isUser ? ' user-row' : '');
+ row.innerHTML = `
+ <div class="cgi-lb-rank ${rankClass}">${rankNum}</div>
+ <div class="cgi-lb-info">
+ <div class="cgi-lb-name">${e.name}${e.isUser ? ' ' : ''}</div>
+ <div class="cgi-lb-meta">${e.meta}</div>
+ </div>
+ <div class="cgi-lb-right">
+ <div class="cgi-lb-liters">${Math.round(e.liters).toLocaleString('en-IN')} L</div>
+ <div class="cgi-lb-bar-track">
+ <div class="cgi-lb-bar-fill" style="width:0%" data-target="${pct}"></div>
+ </div>
+ </div>`;
+ list.appendChild(row);
+ });
+
+ // Animate bars after a short delay
+ requestAnimationFrame(() => requestAnimationFrame(() => {
+ list.querySelectorAll('.cgi-lb-bar-fill').forEach(b => {
+ b.style.width = b.dataset.target + '%';
+ });
+ }));
+ }
+
+ // ---------- SCHEME ELIGIBILITY ----------
+ function renderSchemeEligibility(roofArea, harvestedL){
+ const grid = document.getElementById('cgi-scheme-grid');
+ const totalEl = document.getElementById('cgi-scheme-total');
+ const totalAmtEl = document.getElementById('cgi-total-incentive');
+ if(!grid) return;
+
+ // Scheme rules: { name, icon, minRoof, minHarvest, amount, desc }
+ const schemes = [
+ {
+ name: currentLang === 'rj' ? 'जल शक्ति अभियान सब्सिडी' : 'Jal Shakti Abhiyan Subsidy',
+ icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1"/><line x1="9" y1="8" x2="9" y2="8.01"/><line x1="15" y1="8" x2="15" y2="8.01"/><line x1="9" y1="12" x2="9" y2="12.01"/><line x1="15" y1="12" x2="15" y2="12.01"/><line x1="9" y1="16" x2="15" y2="16"/></svg>',
+ minRoof: 500, minHarvest: 5000,
+ amount: roofArea >= 500 && harvestedL >= 5000 ? Math.round(Math.min(roofArea * 8, 25000) / 100) * 100 : 0,
+ desc: currentLang === 'rj' ? '500 वर्ग फुट सूं बड़ी छत RWH वास्ते केंद्र सरकार री सब्सिडी।' : 'Central govt subsidy for rooftop RWH installations above 500 sq ft.'
+ },
+ {
+ name: currentLang === 'rj' ? 'राज्य RWH प्रोत्साहन' : 'State RWH Incentive',
+ icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.3"/></svg>',
+ minRoof: 800, minHarvest: 10000,
+ amount: roofArea >= 800 && harvestedL >= 10000 ? Math.round(Math.min(roofArea * 5, 15000) / 100) * 100 : 0,
+ desc: currentLang === 'rj' ? 'मध्यम सूं बड़ी छत कैचमेंट वास्ते राज्य स्तरीय प्रोत्साहन।' : 'State-level incentive for medium to large roof catchments.'
+ },
+ {
+ name: currentLang === 'rj' ? 'हरित भवन क्रेडिट' : 'Green Building Credit',
+ icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4.5C12 4.5 6 9.5 6 16.5c0 1 .1 2 .3 2.8C13 19 18.5 13.5 19 4.5Z"/><path d="M6 19 19 5"/></svg>',
+ minRoof: 1200, minHarvest: 20000,
+ amount: roofArea >= 1200 && harvestedL >= 20000 ? 12000 : 0,
+ desc: currentLang === 'rj' ? 'प्रमाणित हरित पाणी मानक प्राप्त इमारतां वास्ते एकमुश्त कर क्रेडिट।' : 'One-time tax credit for buildings achieving certified green water standards.'
+ },
+ {
+ name: currentLang === 'rj' ? 'खेती / ग्रामीण पाणी अनुदान' : 'Farm / Rural Water Grant',
+ icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V8"/><path d="M12 8c0-2.5-2-3.5-3.5-3.5C9 6.5 10 8 12 8Z"/><path d="M12 8c0-2.5 2-3.5 3.5-3.5C15 6.5 14 8 12 8Z"/><path d="M12 12c0-2.2-1.8-3-3-3 .4 1.6 1.3 2.8 3 3Z"/><path d="M12 12c0-2.2 1.8-3 3-3-.4 1.6-1.3 2.8-3 3Z"/></svg>',
+ minRoof: 200, minHarvest: 3000,
+ amount: harvestedL >= 3000 ? Math.round(Math.min(harvestedL * 0.1, 8000) / 100) * 100 : 0,
+ desc: currentLang === 'rj' ? '3,000 L/साल सूं जादो पाणी भंडारण वास्ते खास ग्रामीण/कृषि अनुदान।' : 'Special rural/agricultural grant for any rainwater storage above 3,000 L/yr.'
+ }
+ ];
+
+ grid.innerHTML = '';
+ let totalIncentive = 0;
+
+ schemes.forEach(s => {
+ const eligible = s.amount > 0;
+ totalIncentive += s.amount;
+ const item = document.createElement('div');
+ item.className = 'scheme-item ' + (eligible ? 'eligible' : 'ineligible');
+ const eligibleTxt = currentLang === 'rj' ? 'पात्र' : 'Eligible';
+ const notEligibleTxt = currentLang === 'rj' ? 'पात्र नहीं' : 'Not Eligible';
+ item.innerHTML = `
+ <div class="si-header">
+ <span class="si-icon">${s.icon}</span>
+ <span class="si-name">${s.name}</span>
+ </div>
+ <span class="si-status">${eligible ? '<svg class="icon-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><polyline points="8,12.3 10.7,15 16,9"/></svg> ' + eligibleTxt : '<svg class="icon-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg> ' + notEligibleTxt}</span>
+ ${eligible ? `<div class="si-amount">₹${s.amount.toLocaleString('en-IN')}</div>` : ''}
+ <div class="si-desc">${s.desc}</div>`;
+ grid.appendChild(item);
+ });
+
+ if(totalIncentive > 0){
+ totalAmtEl.dataset.raw = totalAmtEl.dataset.raw || '0';
+ animateCount(totalAmtEl, totalIncentive, 1000, (v) => '₹' + Math.round(v).toLocaleString('en-IN'));
+ totalEl.style.display = 'flex';
+ } else {
+ totalEl.style.display = 'none';
+ }
+ }
+
+ // ---------- COMMUNITY CALCULATOR ----------
+ function cgiCalcCommunity(){
+ setFieldError('cgi-houses', '');
+ if(!lastCalc){
+ showToast(currentLang === 'rj' ? 'पहलां मुख्य गणना करो' : 'Please run the main calculation first.', 'error');
+ return;
+ }
+ const housesInput = document.getElementById('cgi-houses');
+ const houses = parseInt(housesInput.value, 10);
+ if(!houses || houses < 1){
+ setFieldError('cgi-houses', currentLang === 'rj' ? '1 या जादा घरां री गिणती भरो' : 'Enter 1 or more houses');
+ housesInput.focus();
+ return;
+ }
+
+ const totalL = lastCalc.harvested * houses;
+ const families = Math.round(totalL / (HOUSEHOLD_DAILY_NEED_L * 365));
+ const co2 = Math.round((totalL * CO2_G_PER_L) / 1000);
+
+ const colonyCmp = document.getElementById('cgi-colony-liters');
+ const familiesCmp = document.getElementById('cgi-families');
+ const co2Cmp = document.getElementById('cgi-colony-co2');
+
+ animateCount(colonyCmp, totalL, 900);
+ animateCount(familiesCmp, families, 900);
+ animateCount(co2Cmp, co2, 900);
+ }
+
+ // ---------- SDG CONTRIBUTIONS ----------
+ function renderSDG(harvestedL, carbonKg){
+ const sdg6El = document.getElementById('sdg6-contrib');
+ const sdg11El = document.getElementById('sdg11-contrib');
+ const sdg13El = document.getElementById('sdg13-contrib');
+ if(!sdg6El) return;
+
+ // SDG 6: express as % of annual household water need
+ const householdAnnualL = HOUSEHOLD_DAILY_NEED_L * 365;
+ const sdg6Pct = Math.min(Math.round((harvestedL / householdAnnualL) * 100), 200);
+ sdg6El.textContent = currentLang === 'rj'
+ ? `एक परिवार री सालाना पाणी जरूरत रो ~${sdg6Pct}% पूरो करै`
+ : `Covers ~${sdg6Pct}% of a family's annual water need`;
+
+ // SDG 11: express in terms of tank fill-ups (5,000 L tank)
+ const fills = Math.round(harvestedL / 5000);
+ sdg11El.textContent = currentLang === 'rj'
+ ? `5,000 L सामुदायिक टैंक साल में ~${fills.toLocaleString('en-IN')} बार भरसी`
+ : `Fills a 5,000 L community tank ~${fills.toLocaleString('en-IN')}× a year`;
+
+ // SDG 13: CO₂ reduction vs avg household
+ sdg13El.textContent = currentLang === 'rj'
+ ? `${carbonKg.toLocaleString('en-IN')} kg CO₂ / साल बचावै`
+ : `Saves ${carbonKg.toLocaleString('en-IN')} kg CO₂ / year`;
+ }
+
+ // ---------- 5-YEAR PROJECTION ----------
+ function renderProjection(harvestedL, maxPotentialL){
+ const svg = document.getElementById('projSvg');
+ const labelRow = document.getElementById('projYearLabels');
+ const summaryRow = document.getElementById('projSummaryRow');
+ if(!svg) return;
+
+ const W = 700, H = 220, PAD = { t: 16, r: 20, b: 10, l: 52 };
+ const innerW = W - PAD.l - PAD.r;
+ const innerH = H - PAD.t - PAD.b;
+
+ const currentYear = new Date().getFullYear();
+ // Yearly improvement: harvested grows 8% p.a. (adoption + maintenance), potential stays fixed
+ const years = [0,1,2,3,4].map(i => currentYear + i);
+ const harvestSeries = years.map((_, i) => Math.round(harvestedL * Math.pow(1.08, i)));
+ const potentialSeries = years.map(() => Math.round(maxPotentialL));
+
+ const allValues = [...harvestSeries, ...potentialSeries];
+ const maxVal = Math.max(...allValues);
+ const scaleY = v => PAD.t + innerH - (v / maxVal) * innerH;
+ const scaleX = i => PAD.l + (i / (years.length - 1)) * innerW;
+
+ function polyline(series, color, dashed){
+ const pts = series.map((v, i) => `${scaleX(i)},${scaleY(v)}`).join(' ');
+ return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5"
+ stroke-linecap="round" stroke-linejoin="round"
+ ${dashed ? 'stroke-dasharray="6 4"' : ''}
+ style="transition:stroke-dashoffset 1.5s ease;"/>`;
+ }
+
+ function dots(series, color){
+ return series.map((v, i) =>
+ `<circle cx="${scaleX(i)}" cy="${scaleY(v)}" r="5" fill="${color}" stroke="#fff" stroke-width="2"/>`
+ ).join('');
+ }
+
+ // Grid lines
+ const gridLines = [0.25, 0.5, 0.75, 1].map(f => {
+ const y = PAD.t + innerH - f * innerH;
+ const label = Math.round(maxVal * f).toLocaleString('en-IN');
+ return `<line x1="${PAD.l}" x2="${W-PAD.r}" y1="${y}" y2="${y}" stroke="#E5E1D6" stroke-width="1"/>
+ <text x="${PAD.l - 6}" y="${y + 4}" text-anchor="end" font-size="10" fill="#9A9080">${label}</text>`;
+ }).join('');
+
+ svg.innerHTML = `
+ ${gridLines}
+ ${polyline(potentialSeries, '#3B7FB0', true)}
+ ${polyline(harvestSeries, '#3F8C4A', false)}
+ ${dots(potentialSeries, '#3B7FB0')}
+ ${dots(harvestSeries, '#3F8C4A')}
+ `;
+
+ // Year labels
+ labelRow.innerHTML = years.map(y => `<span>${y}</span>`).join('');
+
+ // Summary cards
+ const totalFiveYear = harvestSeries.reduce((a,b) => a+b, 0);
+ const co2FiveYear = Math.round((totalFiveYear * CO2_G_PER_L) / 1000);
+ const yr5Growth = Math.round(((harvestSeries[4] - harvestSeries[0]) / harvestSeries[0]) * 100);
+
+ const rjMode = currentLang === 'rj';
+ summaryRow.innerHTML = `
+ <div class="proj-sum-card blue">
+ <div class="ps-num">${Math.round(totalFiveYear).toLocaleString('en-IN')} L</div>
+ <div class="ps-label">${rjMode ? 'कुल पाणी बचायो (5 साल)' : 'Total Water Saved (5 yrs)'}</div>
+ </div>
+ <div class="proj-sum-card green">
+ <div class="ps-num">+${yr5Growth}%</div>
+ <div class="ps-label">${rjMode ? '5वें साल तक बढ़ोतरी' : 'Growth by Year 5'}</div>
+ </div>
+ <div class="proj-sum-card brown">
+ <div class="ps-num">${co2FiveYear.toLocaleString('en-IN')} kg</div>
+ <div class="ps-label">${rjMode ? 'CO₂ बचायो (5 साल)' : 'CO₂ Avoided (5 yrs)'}</div>
+ </div>`;
+ }
+
+ // ---------- EXPORT REPORT ----------
+ function cgiExportReport(){
+ if(!lastCalc){
+ showToast(currentLang === 'rj' ? 'पहलां मुख्य गणना करो' : 'Please run the main calculation first.', 'error');
+ return;
+ }
+ window.print();
+ }
+
+ function cgiCopyReport(){
+ if(!lastCalc){
+ showToast(currentLang === 'rj' ? 'पहलां मुख्य गणना करो' : 'Please run the main calculation first.', 'error');
+ return;
+ }
+ const { roofArea, rainfall, efficiency, areaType, harvested, score } = lastCalc;
+ const co2 = Math.round((harvested * CO2_G_PER_L) / 1000);
+ const isRjRpt = currentLang === 'rj';
+ const text = [
+ isRjRpt ? '=== वरसाती पाणी संग्रहण टिकावूपण रिपोर्ट ===' : '=== RAINWATER HARVESTING SUSTAINABILITY REPORT ===',
+ '',
+ isRjRpt ? '— इनपुट पैरामीटर —' : '— INPUT PARAMETERS —',
+ isRjRpt ? `छत क्षेत्रफळ : ${fmt(roofArea)} वर्ग फुट` : `Roof Area : ${fmt(roofArea)} sq ft`,
+ isRjRpt ? `सालाना वरसाद : ${fmt(rainfall)} mm` : `Annual Rainfall : ${fmt(rainfall)} mm`,
+ isRjRpt ? `सिस्टम दक्षता: ${efficiency}%` : `System Efficiency: ${efficiency}%`,
+ isRjRpt ? `क्षेत्र प्रकार : ${areaType}` : `Area Type : ${areaType}`,
+ '',
+ isRjRpt ? '— परिणाम —' : '— RESULTS —',
+ isRjRpt ? `सालाना हार्वेस्ट : ${fmt(harvested)} L/साल` : `Annual Harvest : ${fmt(harvested)} L/yr`,
+ isRjRpt ? `पाणी बचत अंक : ${score}/100` : `Water Score : ${score}/100`,
+ '',
+ isRjRpt ? '— पर्यावरण प्रभाव —' : '— ENVIRONMENTAL IMPACT —',
+ isRjRpt ? `CO₂ घटायो : ${co2} kg/साल` : `CO₂ Reduced : ${co2} kg/yr`,
+ isRjRpt ? `पेड़ां नै पाणी : ${Math.round(harvested / 450)}` : `Trees Supported : ${Math.round(harvested / 450)}`,
+ '',
+ isRjRpt ? '— 5 साल रो अनुमान —' : '— 5-YEAR PROJECTION —',
+ ...[0,1,2,3,4].map(i =>
+ isRjRpt ? `साल ${new Date().getFullYear() + i}: ${fmt(harvested * Math.pow(1.08, i))} L` : `Year ${new Date().getFullYear() + i}: ${fmt(harvested * Math.pow(1.08, i))} L`
+ ),
+ '',
+ isRjRpt ? 'वरसाती पाणी संग्रहण डैशबोर्ड द्वारा बणायो' : 'Generated by Rainwater Harvesting Dashboard'
+ ].join('\n');
+
+ navigator.clipboard.writeText(text)
+ .then(() => showToast(currentLang === 'rj' ? ' रिपोर्ट कॉपी हो गी!' : ' Report copied to clipboard!', 'success'))
+ .catch(() => showToast(currentLang === 'rj' ? 'कॉपी नहीं हुई — प्रिंट काम में लो' : 'Copy failed. Please use Print instead.', 'error'));
+ }
+
+ // ============================================================
+ // AI INTELLIGENCE CENTER — JavaScript
+ // All values below are derived live from `lastCalc`; nothing
+ // here is a fixed/hardcoded outcome.
+ // ============================================================
+
+ // ---------- 1. AI WATER ADVISOR ----------
+ function renderAIAdvisor(calc){
+ const list = document.getElementById('ai-advisor-list');
+ if(!list) return;
+ const { roofArea, rainfall, efficiency, areaType, harvested, maxPotential, wasted, score } = calc;
+ const tank = recommendTankSize(harvested);
+ const capturePct = maxPotential > 0 ? (harvested / maxPotential) * 100 : 0;
+
+ // Build a pool of candidate moves, each tagged with a priority weight.
+ // The advisor picks the top 3 by weight so the list reflects this exact site.
+ const pool = [];
+
+ const isRj = currentLang === 'rj';
+
+ pool.push({
+ w: tank >= 10000 ? 95 : tank >= 5000 ? 75 : 55,
+ title: isRj ? 'भंडारण क्षमता बधावो' : 'Increase storage capacity',
+ detail: isRj
+ ? `${fmt(harvested)} L/साल रे हिसाब सूं, ${tank.toLocaleString('en-IN')} L टैंक एक महीने री जरूरत पूरी करसी — छोटो टैंक होवण सूं मानसून में ओवरफ्लो थासी।`
+ : `At ${fmt(harvested)} L/yr, a ${tank.toLocaleString('en-IN')} L tank captures close to a full month's supply — upgrading from a smaller tank prevents overflow loss during peak monsoon days.`
+ });
+
+ pool.push({
+ w: efficiency < 60 ? 100 : efficiency < 80 ? 70 : 30,
+ title: isRj ? (efficiency < 80 ? 'फिल्ट्रेशन सिस्टम लगावो' : 'फिल्ट्रेशन सिस्टम सुधारो') : (efficiency < 80 ? 'Add a filtration system' : 'Upgrade your filtration system'),
+ detail: efficiency < 80
+ ? (isRj ? `तुहारी सिस्टम दक्षता ${efficiency}% है। फर्स्ट-फ्लश डायवर्टर अैं पत्ता/मिट्टी मेश फिल्टर लगावण सूं हर साल करीब ${Math.round((Math.min(efficiency + 15, 100) - efficiency) / 100 * maxPotential).toLocaleString('en-IN')} L जादो पाणी मिलसी।` : `Your system efficiency is ${efficiency}%. A first-flush diverter plus a leaf/silt mesh filter typically recovers an extra ${Math.round((Math.min(efficiency + 15, 100) - efficiency) / 100 * maxPotential).toLocaleString('en-IN')} L/yr by stopping debris-related losses.`)
+ : (isRj ? `दक्षता पहलां ही ${efficiency}% पर मजबूत है। एक बारीक मेश फिल्टर स्टेज इण प्रदर्शन नै उम्र रे सागै बचावसी।` : `Efficiency is already strong at ${efficiency}%. A finer-mesh filter stage protects this performance as the catchment ages.`)
+ });
+
+ pool.push({
+ w: roofArea < 1000 ? 90 : roofArea < 2000 ? 45 : 15,
+ title: isRj ? 'छत संग्रहण क्षेत्र बधावो' : 'Expand rooftop collection area',
+ detail: roofArea < 1000
+ ? (isRj ? `तुहारो ${fmt(roofArea)} वर्ग फुट कैचमेंट थोड़ो छोटो है। आंगण, बालकनी, या शेड री छत नै भी जोड़ण सूं सालाना हार्वेस्ट करीब ${fmt(harvested * 0.25)} L बध सकै है।` : `Your ${fmt(roofArea)} sq ft catchment is on the smaller side. Routing a courtyard, balcony, or shed roof into the same downpipe could lift annual harvest by roughly ${fmt(harvested * 0.25)} L.`)
+ : (isRj ? `तुहारो ${fmt(roofArea)} वर्ग फुट कैचमेंट पहलां ही बड़ो है — दूजो संग्रहण बिंदु खासकर तेज वरसाद में काम आवसी।` : `Your ${fmt(roofArea)} sq ft catchment is already sizeable — a secondary collection point would mainly help during short, intense bursts of rain.`)
+ });
+
+ pool.push({
+ w: wasted > maxPotential * 0.3 ? 85 : 25,
+ title: isRj ? 'गुमणवाळो रनऑफ घटावो' : 'Reduce uncollected runoff',
+ detail: isRj
+ ? `हर साल ${fmt(wasted)} L पाणी एकठो नहीं होवै। नाली री ढाळ अैं डाउनपाइप रो आकार जांचण सूं जादातर कमी दूर होसी।`
+ : `${fmt(wasted)} L is currently going uncollected each year. Re-checking gutter slope and downpipe sizing usually closes most of this gap.`
+ });
+
+ pool.push({
+ w: rainfall < 500 ? 80 : 20,
+ title: isRj ? 'हार्वेस्टिंग रे सागै ग्रेवाटर रियूज करो' : 'Pair harvesting with greywater reuse',
+ detail: isRj
+ ? `तुहारे इलाके में हर साल ${fmt(rainfall)} mm वरसाद होवै है — ये आरामदायक सीमा सूं घट है। रसोई/नहाण रो ग्रेवाटर गैर-पेय जरूरतां वास्ते काम में लो तो एकठो किया पाणी जादो चलसी।`
+ : `Your zone receives ${fmt(rainfall)} mm of rainfall annually — below the comfortable range. Reusing kitchen/bath greywater for non-drinking needs stretches the same harvested volume further.`
+ });
+
+ pool.push({
+ w: areaType === 'farm' ? 70 : 20,
+ title: isRj ? 'संग्रहण नहर में लाइनिंग लगावो' : 'Line the collection channel',
+ detail: isRj
+ ? 'खेत रे कैचमेंट में पाणी भंडारण तक पहुंचण सूं पहलां ई रिसाव सूं काफी हिस्सो गुम जावै। सील्ड लाइनर लगावण सूं ये मार्जिन बचसी।'
+ : 'Farm catchments lose a meaningful share of runoff to seepage before it reaches storage. Lining the channel with a sealed liner protects this margin.'
+ });
+
+ pool.push({
+ w: capturePct >= 85 ? 60 : 10,
+ title: isRj ? 'मौजूदा प्रदर्शन बणाए राखो' : 'Maintain current performance',
+ detail: isRj
+ ? `तूं सैद्धांतिक क्षमता रो ${Math.round(capturePct)}% एकठो करो रिया हो — ये सबसूं बढ़िया नतीजां में सूं एक है। सालाना जांच सूं ये बणो रहसी।`
+ : `You're capturing ${Math.round(capturePct)}% of theoretical potential — among the best outcomes possible. A yearly inspection keeps it there.`
+ });
+
+ const top3 = pool.sort((a, b) => b.w - a.w).slice(0, 3);
+
+ list.innerHTML = top3.map((item, i) => `
+ <div class="ai-advisor-item">
+ <div class="ai-advisor-num">${i + 1}</div>
+ <div class="ai-advisor-text">
+ <strong>${item.title}</strong>
+ <span>${item.detail}</span>
+ </div>
+ </div>`).join('');
+
+ return top3;
+ }
+
+ // ---------- 2. RISK ANALYSIS ----------
+ function computeRisk(calc){
+ const { rainfall, efficiency, maxPotential, wasted, harvested } = calc;
+ const factors = [];
+ let riskScore = 0;
+
+ // Low rainfall
+ const isRjR = currentLang === 'rj';
+ if(rainfall < 500){
+ riskScore += 35;
+ factors.push({ flag: true, label: isRjR ? 'घट वरसाद वाळो इलाको' : 'Low rainfall zone', val: `${fmt(rainfall)} mm/yr` });
+ } else if(rainfall < 700){
+ riskScore += 15;
+ factors.push({ flag: true, label: isRjR ? 'मध्यम-घट वरसाद' : 'Moderate-low rainfall', val: `${fmt(rainfall)} mm/yr` });
+ } else {
+ factors.push({ flag: false, label: isRjR ? 'वरसाद पर्याप्त' : 'Rainfall sufficient', val: `${fmt(rainfall)} mm/yr` });
+ }
+
+ // Low efficiency
+ if(efficiency < 60){
+ riskScore += 35;
+ factors.push({ flag: true, label: isRjR ? 'घट सिस्टम दक्षता' : 'Low system efficiency', val: `${efficiency}%` });
+ } else if(efficiency < 75){
+ riskScore += 15;
+ factors.push({ flag: true, label: isRjR ? 'दक्षता लक्ष्य सूं घट' : 'Efficiency below target', val: `${efficiency}%` });
+ } else {
+ factors.push({ flag: false, label: isRjR ? 'दक्षता ठीक है' : 'Efficiency healthy', val: `${efficiency}%` });
+ }
+
+ // Low storage / high loss (wasted share of potential)
+ const wastedPct = maxPotential > 0 ? (wasted / maxPotential) * 100 : 0;
+ if(wastedPct > 40){
+ riskScore += 30;
+ factors.push({ flag: true, label: isRjR ? 'ज्यादा पाणी गुमी जावै' : 'High uncollected volume', val: `${Math.round(wastedPct)}% ${isRjR ? 'गुमायो' : 'lost'}` });
+ } else if(wastedPct > 20){
+ riskScore += 12;
+ factors.push({ flag: true, label: isRjR ? 'थोड़ो भंडारण री कमी' : 'Some storage shortfall', val: `${Math.round(wastedPct)}% ${isRjR ? 'गुमायो' : 'lost'}` });
+ } else {
+ factors.push({ flag: false, label: isRjR ? 'भंडारण संग्रहण मजबूत' : 'Storage capture solid', val: `${Math.round(100 - wastedPct)}% ${isRjR ? 'एकठो' : 'captured'}` });
+ }
+
+ riskScore = Math.min(100, riskScore);
+ let level = 'low';
+ if(riskScore >= 55) level = 'high';
+ else if(riskScore >= 25) level = 'medium';
+
+ return { riskScore, level, factors };
+ }
+
+ function renderRiskAnalysis(calc){
+ const badge = document.getElementById('ai-risk-badge');
+ const scoreLabel = document.getElementById('ai-risk-score');
+ const meter = document.getElementById('ai-risk-meter');
+ const factorsEl = document.getElementById('ai-risk-factors');
+ if(!badge) return;
+
+ const { riskScore, level, factors } = computeRisk(calc);
+
+ const isRjBadge = currentLang === 'rj';
+ const badgeText = level === 'low' ? (isRjBadge ? 'ओछो जोखम' : 'Low Risk') : level === 'medium' ? (isRjBadge ? 'मध्यम जोखम' : 'Medium Risk') : (isRjBadge ? 'वधारो जोखम' : 'High Risk');
+ badge.className = 'ai-risk-badge ' + level;
+ badge.textContent = badgeText;
+ scoreLabel.textContent = isRjBadge ? `जोखम सूचकांक: ${riskScore}/100` : `Risk index: ${riskScore}/100`;
+
+ meter.className = 'ai-risk-meter-fill ' + level;
+ meter.style.width = '0%';
+ requestAnimationFrame(() => requestAnimationFrame(() => { meter.style.width = riskScore + '%'; }));
+
+ factorsEl.innerHTML = factors.map(f => `
+ <div class="ai-risk-factor ${f.flag ? 'flag' : 'ok'}">
+ <span class="rf-dot"></span>
+ <span class="rf-label">${f.label}</span>
+ <span class="rf-val">${f.val}</span>
+ </div>`).join('');
+
+ return { riskScore, level };
+ }
+
+ // ---------- 3. SMART RECOMMENDATIONS TIMELINE ----------
+ function renderTimeline(calc, advisorTop3, risk){
+ const wrap = document.getElementById('ai-timeline');
+ if(!wrap) return;
+ const { efficiency, roofArea, harvested } = calc;
+ const tank = recommendTankSize(harvested);
+
+ const isRjTL = currentLang === 'rj';
+
+ const immediateTitle = risk.level === 'high'
+ ? (isRjTL ? 'सबसूं ज्यादा जोखम वाळो कारण ठीक करो' : 'Fix the highest-risk factor')
+ : (advisorTop3[0] ? advisorTop3[0].title : (isRjTL ? 'सिस्टम जांचो' : 'Inspect the system'));
+ const immediateBody = risk.level === 'high'
+ ? (isRjTL ? `जोखम सूचकांक ${risk.riskScore}/100 है। ऊपर चिह्नित कारणां में सूं जो इस हफ्ते सबसूं आसान लागै उण सूं शुरू करो — आमतौर पर नाली/फिल्टर जांच।` : `Risk index is ${risk.riskScore}/100. Start with whichever flagged factor above is easiest to act on this week — usually a gutter/filter check.`)
+ : (advisorTop3[0] ? advisorTop3[0].detail : (isRjTL ? 'नाली अैं फर्स्ट-फ्लश डायवर्टर री जल्दी से जांच करो।' : 'A quick visual inspection of gutters and the first-flush diverter.'));
+
+ const seasonTitle = efficiency < 80
+ ? (isRjTL ? 'अगले मानसून सूं पहलां फिल्ट्रेशन लगावो/सुधारो' : 'Install/upgrade filtration before next monsoon')
+ : (isRjTL ? `भंडारण नै ${tank.toLocaleString('en-IN')} L पर बदलो` : `Resize storage to ${tank.toLocaleString('en-IN')} L`);
+ const seasonBody = efficiency < 80
+ ? (isRjTL ? `अगले मानसून सूं पहलां पत्ता/मिट्टी फिल्टर मेश लगावो ताकि इण सीज़न री वरसाद ज्यादा दक्षता सूं एकठी हो।` : `Get a leaf/silt filter mesh fitted ahead of the next monsoon window so this season's rainfall is captured at higher efficiency.`)
+ : (isRjTL ? `तुहारी दक्षता पहलां ई मजबूत है, तो अगले सीज़न री जीत है टैंक क्षमता नै ${fmt(harvested)} L/साल री हार्वेस्ट सूं मिलाणो — ${tank.toLocaleString('en-IN')} L टैंक करीब एक महीने री एकत्रण रे बराबर है।` : `Your efficiency is already strong, so the next-season win is matching tank capacity to your ${fmt(harvested)} L/yr harvest — a ${tank.toLocaleString('en-IN')} L tank lines up with roughly one month of capture.`);
+
+ const longTitle = roofArea < 1500
+ ? (isRjTL ? 'कैचमेंट क्षेत्र बधावो' : 'Expand catchment area')
+ : (isRjTL ? 'दूसरे चरण रो रिचार्ज पिट बणावो' : 'Build a second-stage recharge pit');
+ const longBody = roofArea < 1500
+ ? (isRjTL ? `अगले 1–2 सालां में, अतिरिक्त छत या आंगण क्षेत्र नै सिस्टम में जोड़ण री योजना करो — तुहारे ${fmt(roofArea)} वर्ग फुट कैचमेंट वास्ते ये सबसूं असरदार दीर्घकालिक कदम है।` : `Over the next 1–2 years, plan to route additional roof or courtyard area into the system — this is the highest-leverage long-term move for your ${fmt(roofArea)} sq ft catchment.`)
+ : (isRjTL ? `इतरे बड़े कैचमेंट रे सागै, दीर्घकालिक अपग्रेड है टैंक क्षमता सूं परे ओवरफ्लो वास्ते रिचार्ज पिट — जो अतिरिक्त मानसूनी पाणी नै रनऑफ री बजाय भूजल रिचार्ज में बदलसी।` : `With a catchment this size, the long-term upgrade is a recharge pit for overflow beyond tank capacity, turning excess monsoon water into groundwater recharge instead of runoff.`);
+
+ const stages = [
+ { cls: 'immediate', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="4" y1="12" x2="11" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/><circle cx="17" cy="16" r="4.2"/><path d="M17 14.3V16l1.3.9"/></svg>', when: isRjTL ? 'तुरंत' : 'Immediate', title: immediateTitle, body: immediateBody },
+ { cls: 'season', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="4" y1="12" x2="11" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/><circle cx="17" cy="16" r="4.2"/><path d="M17 14.3V16l1.3.9"/></svg>', when: isRjTL ? 'अगलो सीज़न' : 'Next Season', title: seasonTitle, body: seasonBody },
+ { cls: 'longterm', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="3.5,18 9.5,11.5 14,15 20.5,7.5"/><polyline points="14.5,7.5 20.5,7.5 20.5,13"/></svg>', when: isRjTL ? 'दीर्घकालिक' : 'Long-Term', title: longTitle, body: longBody }
+ ];
+
+ wrap.innerHTML = stages.map(s => `
+ <div class="ai-timeline-stage ${s.cls}">
+ <div class="ai-timeline-head">
+ <div class="ai-timeline-dot">${s.icon}</div>
+ <div>
+ <div class="ai-timeline-when">${s.when}</div>
+ <div class="ai-timeline-title">${s.title}</div>
+ </div>
+ </div>
+ <div class="ai-timeline-card-body">${s.body}</div>
+ </div>`).join('');
+ }
+
+ // ---------- 4. AI SUSTAINABILITY SCORE ----------
+ function computeSustainabilityScore(calc){
+ const { efficiency, harvested, maxPotential, rainfall } = calc;
+
+ // Component A: capture rate (harvested vs theoretical max) — out of 40
+ const capturePct = maxPotential > 0 ? Math.min(harvested / maxPotential, 1) : 0;
+ const captureComponent = capturePct * 40;
+
+ // Component B: system efficiency — out of 35
+ const effComponent = (Math.min(efficiency, 100) / 100) * 35;
+
+ // Component C: rainfall reliability — out of 25 (scaled against a 1000mm dependable benchmark)
+ const rainComponent = Math.min(rainfall / 1000, 1) * 25;
+
+ const total = Math.round(captureComponent + effComponent + rainComponent);
+ return {
+ total: Math.max(0, Math.min(100, total)),
+ captureComponent: Math.round(captureComponent),
+ effComponent: Math.round(effComponent),
+ rainComponent: Math.round(rainComponent)
+ };
+ }
+
+ function renderAISustainabilityScore(calc){
+ const numEl = document.getElementById('aiGaugeNum');
+ const ring = document.getElementById('aiGaugeFill');
+ const verdictEl = document.getElementById('aiScoreVerdict');
+ const descEl = document.getElementById('aiScoreDesc');
+ const breakdownEl = document.getElementById('aiScoreBreakdown');
+ if(!numEl) return null;
+
+ const { total, captureComponent, effComponent, rainComponent } = computeSustainabilityScore(calc);
+
+ const circumference = 2 * Math.PI * 70; // r=70
+ const offset = circumference * (1 - total / 100);
+ ring.style.strokeDashoffset = circumference;
+ requestAnimationFrame(() => requestAnimationFrame(() => { ring.style.strokeDashoffset = offset; }));
+ animateCount(numEl, total, 1300);
+
+ const isRjSS = currentLang === 'rj';
+ let verdict, desc, ringColor;
+ if(total >= 75){
+ verdict = isRjSS ? ' अत्यंत टिकावू सिस्टम' : ' Highly Sustainable System'; ringColor = '#3F8C4A';
+ desc = isRjSS
+ ? `${total}/100 रो स्कोर तुहारे सेटअप नै शीर्ष श्रेणी में राखै है — मजबूत कैप्चर दर, स्वस्थ दक्षता, अैं भरोसेमंद वरसाद आधार — सब एक-दूसरे नै मजबूत करो रिया हैं।`
+ : `A score of ${total}/100 puts your setup in the top tier — strong capture rate, healthy efficiency, and a reliable rainfall base all reinforcing each other.`;
+ } else if(total >= 50){
+ verdict = isRjSS ? ' टिकावू, अैं सुधार री गुंजाइश' : ' Sustainable, With Room to Grow'; ringColor = '#5A3F8C';
+ desc = isRjSS
+ ? `${total}/100 पर तुहारो सिस्टम ठीक से काम करो रियो है। नीचे दियो ब्रेकडाउन बतावसी के कौनसो लीवर — कैप्चर, दक्षता, या वरसाद — स्कोर नै सबसूं जादो रोको रियो है।`
+ : `At ${total}/100, your system is performing soundly. The breakdown below shows exactly which lever — capture, efficiency, or rainfall — is holding the score back most.`;
+ } else {
+ verdict = isRjSS ? ' रणनीतिक निवेश री जरूरत' : ' Needs Strategic Investment'; ringColor = '#B8862E';
+ desc = isRjSS
+ ? `${total}/100 रो स्कोर बताओ है के अभी बड़ो सुधार संभव है। ऊपर AI वाटर एडवाइजर काम में लो — नीचे सबसूं कमजोर घटक सूं शुरू करणो सबसूं फायदेमंद है।`
+ : `A score of ${total}/100 signals real upside available. Use the AI Water Advisor above — the weakest component below is the best place to start.`;
+ }
+ ring.setAttribute('stroke', ringColor);
+ verdictEl.textContent = verdict;
+ descEl.textContent = desc;
+
+ const isRjBD = currentLang === 'rj';
+ const rows = [
+ { label: isRjBD ? 'कैप्चर दर' : 'Capture Rate', val: captureComponent, max: 40 },
+ { label: isRjBD ? 'सिस्टम दक्षता' : 'System Efficiency', val: effComponent, max: 35 },
+ { label: isRjBD ? 'वरसाद भरोसेमंदता' : 'Rainfall Reliability', val: rainComponent, max: 25 }
+ ];
+ breakdownEl.innerHTML = rows.map(r => `
+ <div class="ai-score-bd-row">
+ <span class="bd-label">${r.label}</span>
+ <span class="ai-score-bd-track"><span class="ai-score-bd-fill" data-target="${(r.val / r.max) * 100}" style="width:0%"></span></span>
+ <span class="bd-val">${r.val}/${r.max}</span>
+ </div>`).join('');
+
+ requestAnimationFrame(() => requestAnimationFrame(() => {
+ breakdownEl.querySelectorAll('.ai-score-bd-fill').forEach(el => {
+ el.style.width = el.dataset.target + '%';
+ });
+ }));
+
+ return total;
+ }
+
+ // ---------- 5. ACHIEVEMENT SYSTEM ----------
+ function computeAchievements(calc, sustainabilityScore){
+ const { harvested, efficiency, roofArea, wasted, maxPotential } = calc;
+ const wastedPct = maxPotential > 0 ? (wasted / maxPotential) * 100 : 100;
+
+ const isRjAch = currentLang === 'rj';
+ return [
+ {
+ id: 'guardian', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 5.8v5.4C4.5 16.4 7.7 19.8 12 21c4.3-1.2 7.5-4.6 7.5-9.8V5.8L12 3z"/></svg>', name: isRjAch ? 'पाणी रखवाळो' : 'Water Guardian',
+ unlocked: harvested >= 20000,
+ desc: harvested >= 20000
+ ? (isRjAch ? `खुलगो — ${fmt(harvested)} L/साल री हार्वेस्टिंग 20,000 L री सीमा पार करी।` : `Unlocked — harvesting ${fmt(harvested)} L/yr clears the 20,000 L guardian threshold.`)
+ : (isRjAch ? `खोलण वास्ते 20,000 L/साल करो। अबार ${fmt(harvested)} L/साल है।` : `Harvest 20,000 L/yr to unlock. Currently at ${fmt(harvested)} L/yr.`)
+ },
+ {
+ id: 'eco', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4.5C12 4.5 6 9.5 6 16.5c0 1 .1 2 .3 2.8C13 19 18.5 13.5 19 4.5Z"/><path d="M6 19 19 5"/></svg>', name: isRjAch ? 'ईको चैंपियन' : 'Eco Champion',
+ unlocked: efficiency >= 75 && wastedPct <= 25,
+ desc: efficiency >= 75 && wastedPct <= 25
+ ? (isRjAch ? `खुलगो — ${efficiency}% दक्षता रे सागै सिर्फ ${Math.round(wastedPct)}% ही रनऑफ में गुमो।` : `Unlocked — ${efficiency}% efficiency with only ${Math.round(wastedPct)}% lost to runoff.`)
+ : (isRjAch ? `75%+ दक्षता रे सागै 25% सूं घट नुकसान वास्ते पहुंचो। अबार ${efficiency}% दक्षता, ${Math.round(wastedPct)}% गुमायो।` : `Reach 75%+ efficiency with under 25% loss. Currently ${efficiency}% efficiency, ${Math.round(wastedPct)}% lost.`)
+ },
+ {
+ id: 'climate', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.2 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.2-3.6-8.5S9.6 5.8 12 3.5z"/></svg>', name: isRjAch ? 'जलवायु रक्षक' : 'Climate Protector',
+ unlocked: sustainabilityScore >= 70,
+ desc: sustainabilityScore >= 70
+ ? (isRjAch ? `खुलगो — AI टिकावूपण स्कोर ${sustainabilityScore}/100 70 अंक री सीमा पार करी।` : `Unlocked — AI Sustainability Score of ${sustainabilityScore}/100 crosses the 70-point mark.`)
+ : (isRjAch ? `70+ टिकावूपण स्कोर तक पहुंचो। अबार ${sustainabilityScore}/100 है।` : `Reach a 70+ Sustainability Score. Currently ${sustainabilityScore}/100.`)
+ },
+ {
+ id: 'community', icon: '<svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="3"/><path d="M3 19c0-3 2.5-5 5.5-5S14 16 14 19"/><circle cx="16.5" cy="9" r="2.4"/><path d="M15 19c0-2.3 1.6-4.1 3.8-4.6"/></svg>', name: isRjAch ? 'समाज रो नायक' : 'Community Hero',
+ unlocked: roofArea >= 1200 && harvested >= 30000,
+ desc: roofArea >= 1200 && harvested >= 30000
+ ? (isRjAch ? `खुलगो — ${fmt(roofArea)} वर्ग फुट कैचमेंट सूं ${fmt(harvested)} L/साल हार्वेस्टिंग समुदाय स्तर रे विस्तार नै थाम सकै है।` : `Unlocked — a ${fmt(roofArea)} sq ft catchment harvesting ${fmt(harvested)} L/yr can anchor a community-scale rollout.`)
+ : (isRjAch ? `1,200+ वर्ग फुट कैचमेंट सूं 30,000+ L/साल रे सागै खोलो। अबार ${fmt(roofArea)} वर्ग फुट, ${fmt(harvested)} L/साल है।` : `Unlock with a 1,200+ sq ft catchment harvesting 30,000+ L/yr. Currently ${fmt(roofArea)} sq ft, ${fmt(harvested)} L/yr.`)
+ }
+ ];
+ }
+
+ function renderAchievements(calc, sustainabilityScore){
+ const grid = document.getElementById('ai-achieve-grid');
+ if(!grid) return [];
+ const achievements = computeAchievements(calc, sustainabilityScore);
+
+ grid.innerHTML = achievements.map(a => `
+ <div class="ai-achieve-badge ${a.unlocked ? 'unlocked' : ''}">
+ <div class="ai-achieve-icon-wrap">${a.icon}</div>
+ <div class="ai-achieve-name">${a.name}</div>
+ <div class="ai-achieve-status">${a.unlocked ? (currentLang === 'rj' ? ' खुलगो' : ' Unlocked') : (currentLang === 'rj' ? ' बंद' : ' Locked')}</div>
+ <div class="ai-achieve-desc">${a.desc}</div>
+ </div>`).join('');
+
+ return achievements;
+ }
+
+ // ---------- MASTER RENDER FOR AI INTELLIGENCE CENTER ----------
+ let lastAIState = null;
+
+ function renderAIIntelligence(calc){
+ if(!calc) return;
+ const advisorTop3 = renderAIAdvisor(calc);
+ const risk = renderRiskAnalysis(calc);
+ renderTimeline(calc, advisorTop3, risk);
+ const sustainabilityScore = renderAISustainabilityScore(calc);
+ const achievements = renderAchievements(calc, sustainabilityScore);
+
+ // Cache everything Presentation Mode needs so it never recomputes independently
+ lastAIState = { calc, advisorTop3, risk, sustainabilityScore, achievements };
+ }
+
+ // ---------- 6. PRESENTATION MODE ----------
+ let presentModeTriggerEl = null;
+
+ function openPresentMode(){
+ if(!lastAIState){
+ showToast(currentLang === 'rj' ? 'पहलां मुख्य गणना करो' : 'Please run the main calculation first.', 'error');
+ return;
+ }
+ presentModeTriggerEl = document.activeElement;
+ renderPresentMode(lastAIState);
+ const overlay = document.getElementById('presentOverlay');
+ overlay.classList.add('active');
+ document.body.style.overflow = 'hidden';
+ // Move focus into the overlay for screen-reader and keyboard users
+ const exitBtn = overlay.querySelector('.present-exit-btn');
+ if(exitBtn) exitBtn.focus();
+ }
+
+ function closePresentMode(){
+ document.getElementById('presentOverlay').classList.remove('active');
+ document.body.style.overflow = '';
+ if(presentModeTriggerEl && typeof presentModeTriggerEl.focus === 'function'){
+ presentModeTriggerEl.focus();
+ }
+ }
+
+ function renderPresentMode(state){
+ const { calc, advisorTop3, risk, sustainabilityScore, achievements } = state;
+ const { harvested, roofArea, rainfall } = calc;
+ const co2 = Math.round((harvested * CO2_G_PER_L) / 1000);
+ const body = document.getElementById('presentBody');
+
+ const isRjPM = currentLang === 'rj';
+ const riskLabel = risk.level === 'low' ? (isRjPM ? 'ओछो जोखम' : 'Low Risk') : risk.level === 'medium' ? (isRjPM ? 'मध्यम जोखम' : 'Medium Risk') : (isRjPM ? 'वधारो जोखम' : 'High Risk');
+
+  const noBadgesMsg = `<div style="color:var(--grey-dark); font-size:14px;">${isRjPM ? 'अभी तक कोई उपलब्धि नहीं खुली — दक्षता अैं भंडारण सुधारो तो बैज मिलसी।' : 'No achievements unlocked yet — keep improving efficiency and storage to earn badges.'}</div>`;
+ body.innerHTML = `
+ <div class="present-hero">
+ <div class="ph-eyebrow">${isRjPM ? 'AI टिकावूपण स्कोर' : 'AI Sustainability Score'}</div>
+ <div class="ph-num">${sustainabilityScore}</div>
+ <div class="ph-sub">${isRjPM ? `100 में सूं — ${riskLabel} · ${fmt(harvested)} L/साल एकठो` : `out of 100 — ${riskLabel} · ${fmt(harvested)} L harvested per year`}</div>
+ </div>
+
+ <div class="present-grid">
+ <div class="present-stat-card">
+ <div class="psc-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 12 5l8 7"/><path d="M5.5 11v8h13v-8"/></svg></div>
+ <div class="psc-num">${fmt(roofArea)}</div>
+ <div class="psc-label">${isRjPM ? 'वर्ग फुट छत कैचमेंट' : 'sq ft roof catchment'}</div>
+ </div>
+ <div class="present-stat-card">
+ <div class="psc-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.5a4.2 4.2 0 0 1 .3-8.4 5.4 5.4 0 0 1 10.4 1.7 3.6 3.6 0 0 1-.9 7.1H7Z"/><path d="M9 19.5 8 21.5M13 19.5 12 21.5M17 19.5 16 21.5"/></svg></div>
+ <div class="psc-num">${fmt(rainfall)}</div>
+ <div class="psc-label">${isRjPM ? 'mm सालाना वरसाद' : 'mm annual rainfall'}</div>
+ </div>
+ <div class="present-stat-card">
+ <div class="psc-icon"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4.5C12 4.5 6 9.5 6 16.5c0 1 .1 2 .3 2.8C13 19 18.5 13.5 19 4.5Z"/><path d="M6 19 19 5"/></svg></div>
+ <div class="psc-num">${co2.toLocaleString('en-IN')}</div>
+ <div class="psc-label">${isRjPM ? 'kg CO₂ बचायो / साल' : 'kg CO₂ avoided / yr'}</div>
+ </div>
+ </div>
+
+ <div class="present-section-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18.5h6M9.5 21h5M12 3a6 6 0 0 0-3.2 11.1c.5.3.7.8.7 1.4v.5h5v-.5c0-.6.3-1.1.7-1.4A6 6 0 0 0 12 3Z"/></svg> ${isRjPM ? 'शीर्ष AI सलाहें' : 'Top AI Recommendations'}</div>
+ <div class="present-reco-grid">
+ ${advisorTop3.map((item, i) => `
+ <div class="present-reco-card">
+ <div class="prc-num">${i + 1}</div>
+ <div class="prc-title">${item.title}</div>
+ <div class="prc-detail">${item.detail}</div>
+ </div>`).join('')}
+ </div>
+
+ <div class="present-section-title"><svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="5"/><path d="M9 12.8 7.5 21l4.5-2.5L16.5 21l-1.5-8.2"/></svg> ${isRjPM ? 'उपलब्धियां खुलगी' : 'Achievements Unlocked'}</div>
+ <div class="present-badges-row">
+ ${achievements.filter(a => a.unlocked).map(a => `
+ <div class="present-badge">
+ <div class="pb-icon">${a.icon}</div>
+ <div class="pb-name">${a.name}</div>
+  </div>`).join('') || noBadgesMsg}
+ </div>
+ `;
+ }
+
+ // ---------- KEYBOARD ACCESSIBILITY: focus trapping for overlays ----------
+ function trapFocus(e, overlayEl){
+ if(e.key !== 'Tab') return;
+ const focusables = overlayEl.querySelectorAll(
+ 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+ );
+ if(!focusables.length) return;
+ const first = focusables[0];
+ const last = focusables[focusables.length - 1];
+ if(e.shiftKey && document.activeElement === first){
+ e.preventDefault(); last.focus();
+ } else if(!e.shiftKey && document.activeElement === last){
+ e.preventDefault(); first.focus();
+ }
+ }
+
+ document.addEventListener('keydown', function(e){
+ const presentOverlay = document.getElementById('presentOverlay');
+ const tourOverlay = document.getElementById('tourOverlay');
+
+ if(presentOverlay.classList.contains('active')){
+ if(e.key === 'Escape'){ closePresentMode(); return; }
+ trapFocus(e, presentOverlay);
+ return;
+ }
+
+ if(tourOverlay.classList.contains('active')){
+ if(e.key === 'Escape'){ endTour(); return; }
+ if(e.key === 'ArrowRight'){ e.preventDefault(); tourStep(1); return; }
+ if(e.key === 'ArrowLeft'){ e.preventDefault(); tourStep(-1); return; }
+ trapFocus(e, tourOverlay);
+ return;
+ }
+ });
+
+ // ============================================================
+ // GUIDED WALKTHROUGH MODE — for judges / live demos
+ // Walks a viewer through the dashboard's key sections with a
+ // spotlight + caption. Reuses existing rendered content only;
+ // introduces no new data or metrics.
+ // ============================================================
+ function getTourSteps(){
+ const isRjT = currentLang === 'rj';
+ return [
+ {
+ target: '#input-section',
+ title: isRjT ? 'डैशबोर्ड में आपरो स्वागत' : 'Welcome to the Dashboard',
+ desc: isRjT ? 'आंकलण इठे शुरू होवै है — छत क्षेत्रफळ, वरसाद, अैं सिस्टम दक्षता जैसी साइट जानकारी हर गणना नै चलावै है।' : 'This is where the assessment starts — site details like roof area, rainfall, and system efficiency feed every calculation you will see.'
+ },
+ {
+ target: '#results-section .result-grid',
+ title: isRjT ? 'मुख्य आंकलण परिणाम' : 'Core Assessment Results',
+ desc: isRjT ? 'मुख्य आंकड़ा: साल में कुल एकठो किया वरसाती पाणी, पाणी बचत अंक, अैं समग्र स्थिति बैज।' : 'The headline numbers: total rainwater harvested per year, the Water Saving Score, and an overall status badge.'
+ },
+ {
+ target: '.detector-grid',
+ title: isRjT ? 'पाणी बचत मौका पिछाणणवाळो' : 'Water Saving Opportunity Detector',
+ desc: isRjT ? 'साइट पर कितरो पाणी एकठो हो सकै है अैं अबार कितरो बर्बाद होवै है — दोनों री साथ-साथ तुलना।' : 'A side-by-side view of how much water this site can collect versus how much is currently going uncollected.'
+ },
+ {
+ target: '#recoList',
+ title: isRjT ? 'AI सलाह इंजन' : 'AI Recommendation Engine',
+ desc: isRjT ? 'टैंक आकार, कैचमेंट, वरसाद प्रबंधन, अैं दक्षता पर साइट-विशेष सुझाव — ऊपर दिया इनपुट सूं बणाया गया।' : 'Rule-based, site-specific tips on tank sizing, catchment, rainfall handling, and efficiency — generated from the inputs above.'
+ },
+ {
+ target: '.eco-score-wrap',
+ title: isRjT ? 'पर्यावरण प्रभाव स्कोर' : 'Environmental Impact Score',
+ desc: isRjT ? 'हार्वेस्ट मात्रा नै ईको-प्रभाव स्कोर, परिवार-महीने री आपूर्ति, पेड़ समकक्ष जलयोजन, अैं बचायो CO₂ में बदलै।' : 'Translates the harvest volume into an eco-impact score, household-months of supply, tree-equivalent hydration, and CO₂ avoided.'
+ },
+ {
+ target: '#cgi-lb-list',
+ title: isRjT ? 'सामुदायिक अैं सरकारी जानकारी' : 'Community & Government Insights',
+ desc: isRjT ? 'देखो के ये परिणाम समुदाय लीडरबोर्ड पर कठे है, कौनसी सरकारी योजना वास्ते योग्य है, अैं 5 साल री बचत अनुमान।' : 'See how this result compares on a community leaderboard, what government schemes it may qualify for, and the 5-year savings projection.'
+ },
+ {
+ target: '#ai-intel-section',
+ title: isRjT ? 'AI इंटेलिजेंस केंद्र' : 'AI Intelligence Center',
+ desc: isRjT ? 'AI वाटर एडवाइजर, जोखम विश्लेषण, चरणबद्ध कार्य समयरेखा, AI टिकावूपण स्कोर गेज, अैं उपलब्धि बैज — सभी उसी इनपुट से।' : 'The AI Water Advisor, Risk Analysis, a staged action timeline, an AI Sustainability Score gauge, and unlockable achievement badges — all derived from the same inputs.'
+ },
+ {
+ target: '.ai-present-trigger',
+ title: isRjT ? 'प्रेज़ेंटेशन मोड' : 'Presentation Mode',
+ desc: isRjT ? 'जज राउंड वास्ते: AI टिकावूपण स्कोर, शीर्ष सलाह, अैं खुली उपलब्धियों री पूर्ण-स्क्रीन, विकर्षण-मुक्त सारांश।' : 'For the judging round itself: this opens a full-screen, distraction-free summary of the AI Sustainability Score, top recommendations, and unlocked badges.'
+ }
+ ];
+ }
+ const TOUR_STEPS = getTourSteps();
+
+ let tourIndex = 0;
+ let tourActive = false;
+
+ function buildTourDots(steps){
+ const stepsArr = steps || getTourSteps();
+ const dotsEl = document.getElementById('tourDots');
+ dotsEl.innerHTML = stepsArr.map((_, i) =>
+ `<span class="${i === tourIndex ? 'active' : ''}"></span>`
+ ).join('');
+ }
+
+ function positionSpotlight(targetEl){
+ const spotlight = document.getElementById('tourSpotlight');
+ if(!targetEl){ spotlight.style.opacity = '0'; return; }
+ const rect = targetEl.getBoundingClientRect();
+ const pad = 10;
+ spotlight.style.opacity = '1';
+ spotlight.style.top = Math.max(rect.top - pad, 0) + 'px';
+ spotlight.style.left = Math.max(rect.left - pad, 0) + 'px';
+ spotlight.style.width = (rect.width + pad * 2) + 'px';
+ spotlight.style.height = (rect.height + pad * 2) + 'px';
+ }
+
+ function renderTourStep(){
+ const TOUR_STEPS_CURRENT = getTourSteps();
+ const step = TOUR_STEPS_CURRENT[tourIndex];
+ const targetEl = document.querySelector(step.target);
+
+ const isRjStep = currentLang === 'rj';
+ document.getElementById('tourStepLabel').textContent =
+ isRjStep ? `कदम ${tourIndex + 1} / ${TOUR_STEPS_CURRENT.length}` : `Step ${tourIndex + 1} of ${TOUR_STEPS_CURRENT.length}`;
+ document.getElementById('tourTitle').textContent = step.title;
+ document.getElementById('tourDesc').textContent = step.desc;
+ buildTourDots(TOUR_STEPS_CURRENT);
+
+ const prevBtn = document.getElementById('tourPrevBtn');
+ const nextBtn = document.getElementById('tourNextBtn');
+ prevBtn.style.visibility = tourIndex === 0 ? 'hidden' : 'visible';
+ prevBtn.textContent = isRjStep ? '← पाछो' : 'Back';
+ nextBtn.textContent = tourIndex === TOUR_STEPS_CURRENT.length - 1 ? (isRjStep ? 'पूरो ' : 'Finish ') : (isRjStep ? 'आगे →' : 'Next →');
+
+ if(targetEl){
+ targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+ setTimeout(() => positionSpotlight(targetEl), 380);
+ } else {
+ positionSpotlight(null);
+ }
+ }
+
+ function startTour(){
+ if(!lastCalc){
+ showToast(currentLang === 'rj' ? 'पहलां मुख्य गणना करो, फेर टूर शुरू करो' : 'Run a calculation first, then start the tour', 'error');
+ return;
+ }
+ tourActive = true;
+ tourIndex = 0;
+ document.getElementById('tourOverlay').classList.add('active');
+ document.body.style.overflow = 'hidden';
+ renderTourStep();
+ document.getElementById('tourNextBtn').focus();
+ }
+
+ function tourStep(direction){
+ const next = tourIndex + direction;
+ if(next < 0) return;
+ if(next >= getTourSteps().length){ endTour(); return; }
+ tourIndex = next;
+ renderTourStep();
+ }
+
+ function endTour(){
+ tourActive = false;
+ document.getElementById('tourOverlay').classList.remove('active');
+ document.body.style.overflow = '';
+ document.querySelector('.tour-btn').focus();
+ }
+
+ // Re-position the active spotlight on resize/orientation change so it
+ // never drifts away from its target (cheap: only runs while a tour step
+ // is visible, and only repositions — no re-render of content).
+ window.addEventListener('resize', function(){
+ if(!tourActive) return;
+ const step = getTourSteps()[tourIndex];
+ const targetEl = document.querySelector(step.target);
+ positionSpotlight(targetEl);
+ });
+
+ // ---------- HOOK INTO MAIN renderResults ----------
+ const _origRenderResults = renderResults;
+ renderResults = function(){
+ _origRenderResults();
+ if(!lastCalc) return;
+
+ const { harvested, maxPotential, roofArea, score } = lastCalc;
+ const co2 = Math.round((harvested * CO2_G_PER_L) / 1000);
+
+ renderLeaderboard(harvested);
+ renderSchemeEligibility(roofArea, harvested);
+ renderSDG(harvested, co2);
+ renderProjection(harvested, maxPotential);
+ renderAIIntelligence(lastCalc);
+ };
+</script>
+
+</body>
+</html>
